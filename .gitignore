@@ -6,3 +6,6 @@ __pycache__/
 .DS_Store
 # make fixture / run / check-docker outputs
 build/
+
+# Local /deliver settings
+.claude/deliver.json

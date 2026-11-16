@@ -1,0 +1,159 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "id": "neodc.sentinel_ard.data.sentinel_2.2023.06.08.S2B_20230608_latn518lonw0008_T30UXC_ORB037_20230608120350_utm30n_osgb",
+  "properties": {
+    "datetime": "2023-06-08T11:21:19Z",
+    "created": "2026-02-17T10:10:54.101458Z",
+    "updated": "2026-11-12T07:07:38.545256Z",
+    "start_datetime": "2023-06-08T11:21:19Z",
+    "end_datetime": "2023-06-08T11:21:19Z",
+    "proj:code": "EPSG:27700",
+    "NSSDC Identifier": "2017-013A",
+    "Instrument Family Name": "Multi-Spectral Instrument",
+    "Platform Number": "2B",
+    "Datatake Type": "INS-NOBS",
+    "Ground Tracking Direction": "descending",
+    "Product Type": "S2MSI1C",
+    "Instrument Family Name Abbreviation": [
+      "msi"
+    ],
+    "eo:cloud_cover": 0.055,
+    "Start Orbit Number": 32667,
+    "Start Relative Orbit Number": 37
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -0.716314,
+          52.325652
+        ],
+        [
+          -1.225816,
+          51.348019
+        ],
+        [
+          -1.563879,
+          51.354439
+        ],
+        [
+          -1.532116,
+          52.341355
+        ],
+        [
+          -0.716314,
+          52.325652
+        ]
+      ]
+    ]
+  },
+  "links": [],
+  "assets": {
+    "cog": {
+      "href": "./cog.tif",
+      "type": "image/tiff; application=geotiff",
+      "size": 717339966,
+      "eo:bands": [
+        {
+          "eo: full_width_half_max": 0.07,
+          "name": "B02",
+          "eo:central_wavelength": 492.1,
+          "description": "Blue",
+          "eo:common_name": "blue"
+        },
+        {
+          "eo: full_width_half_max": 0.04,
+          "name": "B03",
+          "eo:central_wavelength": 559,
+          "description": "Green",
+          "eo:common_name": "green"
+        },
+        {
+          "eo: full_width_half_max": 0.03,
+          "name": "B04",
+          "eo:central_wavelength": 665,
+          "description": "Red",
+          "eo:common_name": "red"
+        },
+        {
+          "eo: full_width_half_max": 0.02,
+          "name": "B05",
+          "eo:central_wavelength": 703.8,
+          "description": "Visible and Near Infrared",
+          "eo:common_name": "rededge"
+        },
+        {
+          "eo: full_width_half_max": 0.02,
+          "name": "B06",
+          "eo:central_wavelength": 739.1,
+          "description": "Visible and Near Infrared",
+          "eo:common_name": "rededge"
+        },
+        {
+          "eo: full_width_half_max": 0.02,
+          "name": "B07",
+          "eo:central_wavelength": 779.7,
+          "description": "Visible and Near Infrared",
+          "eo:common_name": "rededge"
+        },
+        {
+          "eo: full_width_half_max": 0.11,
+          "name": "B08",
+          "eo:central_wavelength": 833,
+          "description": "Visible and Near Infrared",
+          "eo:common_name": "nir"
+        },
+        {
+          "eo: full_width_half_max": 0.02,
+          "name": "B08a",
+          "eo:central_wavelength": 864,
+          "description": "Visible and Near Infrared",
+          "eo:common_name": "nir08"
+        },
+        {
+          "eo: full_width_half_max": 0.09,
+          "name": "B11",
+          "eo:central_wavelength": 1610.4,
+          "description": "Short Wave Infrared",
+          "eo:common_name": "swir16"
+        },
+        {
+          "eo: full_width_half_max": 0.19,
+          "name": "B12",
+          "eo:central_wavelength": 2185.7,
+          "description": "Short Wave Infrared",
+          "eo:common_name": "swir22"
+        }
+      ],
+      "location": "on_disk",
+      "roles": [
+        "data"
+      ],
+      "proj:shape": [
+        211,
+        218
+      ],
+      "proj:transform": [
+        10.0,
+        0.0,
+        445270.0,
+        0.0,
+        -10.0,
+        206300.0
+      ]
+    }
+  },
+  "bbox": [
+    -1.563879,
+    51.348019,
+    -0.716314,
+    52.341355
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v2.0.0/schema.json",
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
+  ],
+  "collection": "sentinel2_ard"
+}

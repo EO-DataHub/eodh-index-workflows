@@ -1,0 +1,189 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "id": "S2B_T30UXC_20230608T112118_L2A",
+  "properties": {
+    "created": "2024-01-09T13:38:00.291Z",
+    "platform": "sentinel-2b",
+    "constellation": "sentinel-2",
+    "instruments": [
+      "msi"
+    ],
+    "eo:cloud_cover": 0.079845,
+    "proj:epsg": 32630,
+    "proj:centroid": {
+      "lat": 51.91226,
+      "lon": -1.24289
+    },
+    "mgrs:utm_zone": 30,
+    "mgrs:latitude_band": "U",
+    "mgrs:grid_square": "XC",
+    "grid:code": "MGRS-30UXC",
+    "view:azimuth": 289.4441835184129,
+    "view:incidence_angle": 10.16846142534043,
+    "view:sun_azimuth": 163.519862367182,
+    "view:sun_elevation": 60.2269416432624,
+    "s2:tile_id": "S2B_OPER_MSI_L2A_TL_2BPS_20230608T124738_A032667_T30UXC_N05.09",
+    "s2:degraded_msi_data_percentage": 0.0433,
+    "s2:nodata_pixel_percentage": 64.184892,
+    "s2:saturated_defective_pixel_percentage": 0,
+    "s2:dark_features_percentage": 0.003279,
+    "s2:cloud_shadow_percentage": 0.013043,
+    "s2:vegetation_percentage": 91.55578,
+    "s2:not_vegetated_percentage": 7.93283,
+    "s2:water_percentage": 0.285343,
+    "s2:unclassified_percentage": 0.129878,
+    "s2:medium_proba_clouds_percentage": 0.021835,
+    "s2:high_proba_clouds_percentage": 0.02277,
+    "s2:thin_cirrus_percentage": 0.035239,
+    "s2:snow_ice_percentage": 0,
+    "s2:product_type": "S2MSI2A",
+    "s2:processing_baseline": "05.09",
+    "s2:product_uri": "S2B_MSIL2A_20230608T112119_N0509_R037_T30UXC_20230608T124738.SAFE",
+    "s2:generation_time": "2023-06-08T12:47:38.000000Z",
+    "s2:datatake_id": "GS2B_20230608T112119_032667_N05.09",
+    "s2:datatake_type": "INS-NOBS",
+    "s2:datastrip_id": "S2B_OPER_MSI_L2A_DS_2BPS_20230608T124738_S20230608T112118_N05.09",
+    "s2:reflectance_conversion_factor": 0.971707877373768,
+    "datetime": "2023-06-08T11:26:49.667000Z",
+    "earthsearch:payload_id": "roda-sentinel-2-c1-l2a/workflow-sentinel-2-c1-l2a-to-stac/e3e27cfd2e37227d4d1bfacfcf793201",
+    "storage:platform": "AWS",
+    "storage:region": "us-west-2",
+    "storage:requester_pays": false,
+    "processing:software": {
+      "sentinel-2-c1-l2a-to-stac": "v2023.12.01"
+    },
+    "updated": "2024-01-09T13:38:00.291Z"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -1.5321014711153584,
+          52.341345926982605
+        ],
+        [
+          -1.563836625785487,
+          51.35534711924723
+        ],
+        [
+          -1.2298537983270816,
+          51.35086532992757
+        ],
+        [
+          -0.7207376463905459,
+          52.32847540863633
+        ],
+        [
+          -1.5321014711153584,
+          52.341345926982605
+        ]
+      ]
+    ]
+  },
+  "links": [],
+  "assets": {
+    "red": {
+      "href": "./red.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Red - 10m",
+      "eo:bands": [
+        {
+          "name": "B04",
+          "common_name": "red",
+          "center_wavelength": 0.665,
+          "full_width_half_max": 0.038
+        }
+      ],
+      "gsd": 10,
+      "proj:shape": [
+        214,
+        221
+      ],
+      "proj:transform": [
+        10.0,
+        0.0,
+        614190.0,
+        0.0,
+        -10.0,
+        5734960.0
+      ],
+      "raster:bands": [
+        {
+          "nodata": 0,
+          "data_type": "uint16",
+          "spatial_resolution": 10,
+          "scale": 0.0001,
+          "offset": -0.1
+        }
+      ],
+      "file:checksum": "1220388a2c0c90b63ca66ab88ac9b47bb35ad3083eb798e73d3b6e2d13f482a1fab8",
+      "file:size": 78208709,
+      "roles": [
+        "data",
+        "reflectance"
+      ]
+    },
+    "nir": {
+      "href": "./nir.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "NIR 1 - 10m",
+      "eo:bands": [
+        {
+          "name": "B08",
+          "common_name": "nir",
+          "center_wavelength": 0.842,
+          "full_width_half_max": 0.145
+        }
+      ],
+      "gsd": 10,
+      "proj:shape": [
+        214,
+        221
+      ],
+      "proj:transform": [
+        10.0,
+        0.0,
+        614190.0,
+        0.0,
+        -10.0,
+        5734960.0
+      ],
+      "raster:bands": [
+        {
+          "nodata": 0,
+          "data_type": "uint16",
+          "spatial_resolution": 10,
+          "scale": 0.0001,
+          "offset": -0.1
+        }
+      ],
+      "file:checksum": "122022c74b8904678e155417c684abbfea8deab4744b8717a1b4beb4ea6a973fcd8b",
+      "file:size": 81020479,
+      "roles": [
+        "data",
+        "reflectance"
+      ]
+    }
+  },
+  "bbox": [
+    -1.563837,
+    51.350865,
+    -0.720738,
+    52.341346
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://stac-extensions.github.io/grid/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/mgrs/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/raster/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/sentinel-2/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/storage/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/view/v1.0.0/schema.json"
+  ],
+  "collection": "sentinel-2-c1-l2a"
+}

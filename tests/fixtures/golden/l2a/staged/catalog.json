@@ -1,0 +1,13 @@
+{
+  "type": "Catalog",
+  "stac_version": "1.0.0",
+  "id": "catalog",
+  "description": "staged",
+  "links": [
+    {
+      "rel": "item",
+      "href": "./S2B_T30UXC_20230608T112118_L2A/S2B_T30UXC_20230608T112118_L2A.json",
+      "type": "application/json"
+    }
+  ]
+}
