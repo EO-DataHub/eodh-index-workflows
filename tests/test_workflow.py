@@ -143,7 +143,8 @@ def test_stage1_aoi_that_does_not_overlap_fails(l2a_staged, tmp_path):
 
 
 def _set_pixels(path, values):
-    with rasterio.open(path, "r+") as dst:
+    # The staged rasters are COGs; GDAL refuses to update them in place without this open option.
+    with rasterio.open(path, "r+", IGNORE_COG_LAYOUT_BREAK="YES") as dst:
         data = dst.read(1)
         for (row, col), value in values.items():
             data[row, col] = value
