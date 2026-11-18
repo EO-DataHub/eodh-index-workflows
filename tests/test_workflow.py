@@ -190,6 +190,40 @@ def test_stage1_l2a_without_scale_and_offset_fails_naming_item_and_asset(l2a_sta
     assert "red" in str(raised.value)
 
 
+def test_stage2_l2a_missing_offset_defaults_to_zero(l2a_staged, tmp_path):
+    path = item_json_path(l2a_staged)
+    item = json.loads(path.read_text())
+    for key in ("red", "nir"):
+        for entry in item["assets"][key]["raster:bands"]:
+            del entry["offset"]
+    path.write_text(json.dumps(item))
+
+    [red] = l2a_staged.glob("*/red.tif")
+    nir = red.with_name("nir.tif")
+    with rasterio.open(red) as src:
+        staged_transform = src.transform
+        row, col = src.height // 2, src.width // 2
+    # raw (red, nir) -> expected NDVI after scale 0.0001 and offset 0
+    cases = {
+        (row, col): (2000, 4000, (0.4 - 0.2) / (0.4 + 0.2)),  # offset -0.1 would give 0.5
+        (row, col + 1): (1000, 4000, (0.4 - 0.1) / (0.4 + 0.1)),  # offset -0.1 would make red 0, so NaN
+        (row, col + 2): (0, 4000, np.nan),  # red is 0
+        (row, col + 3): (4000, 0, np.nan),  # nir is 0
+    }
+    _set_pixels(red, {pixel: case[0] for pixel, case in cases.items()})
+    _set_pixels(nir, {pixel: case[1] for pixel, case in cases.items()})
+
+    data, transform, _ = read_output(run_ndvi(l2a_staged, tmp_path / "out"))
+    for (r, c), (_, _, expected) in cases.items():
+        x, y = xy(staged_transform, r, c)
+        out_row, out_col = rowcol(transform, x, y)
+        actual = data[out_row, out_col]
+        if np.isnan(expected):
+            assert np.isnan(actual), (r, c)
+        else:
+            assert actual == pytest.approx(expected, abs=1e-5), (r, c)
+
+
 def test_stage1_output_item_and_collection_follow_the_ndvi_product(l2a_staged, tmp_path):
     spec = run_ndvi(l2a_staged, tmp_path / "out")
 

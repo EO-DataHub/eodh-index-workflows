@@ -104,3 +104,15 @@ def test_stage2_failed_remote_read_names_the_href(l2a_staged, tmp_path):
     _rewrite_hrefs(l2a_staged, lambda key, path: f"http://127.0.0.1:9/{key}.tif")
     with pytest.raises(Exception, match=re.escape("http://127.0.0.1:9/")):
         run_ndvi(l2a_staged, tmp_path / "out")
+
+
+def test_stage2_file_url_with_a_host_is_rejected(tmp_path):
+    from common.bands import gdal_path
+
+    local = tmp_path / "a.tif"
+    assert gdal_path(f"file://localhost{local}") == str(local)
+    assert gdal_path(f"file://{local}") == str(local)
+
+    href = "file://otherhost/data/a.tif"
+    with pytest.raises(ValueError, match=re.escape(href)):
+        gdal_path(href)
