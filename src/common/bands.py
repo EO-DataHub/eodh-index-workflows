@@ -1,6 +1,8 @@
 """Band lookup by STAC common name, and the brightness rule for each supported collection."""
 
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Optional, Tuple, Union
+from urllib.parse import unquote, urlparse
 
 from eodh_workflow import Band, StacItemInput
 from eodh_workflow.inputs import asset_bands, band_common_name, is_geotiff
@@ -41,16 +43,43 @@ def find_band(stac_item: StacItemInput, common_name: str) -> Tuple[str, int]:
     raise KeyError(f"Item {stac_item.id!r} has no band with common name {common_name!r}. Common names: {found}")
 
 
+REMOTE_SCHEMES = ("http://", "https://", "file://")
+
+
+def is_remote(href: str) -> bool:
+    """True for an absolute http(s):// or file:// href, read in place rather than from stage-in."""
+    return href.lower().startswith(REMOTE_SCHEMES)
+
+
 def band(stac_item: StacItemInput, common_name: str) -> Band:
-    """The raster band with STAC common name `common_name`, as (path, 1-based index)."""
+    """The raster band with STAC common name `common_name`, as (location, 1-based index).
+
+    The location is the local path for a relative staged href, and the href itself, as a string,
+    for an absolute http(s):// or file:// href.
+    """
     key, index = find_band(stac_item, common_name)
+    href = stac_item.assets[key].get("href") or ""
+    if is_remote(href):
+        return Band(href, index)
     return Band(stac_item.asset_path(key), index)
+
+
+def gdal_path(location: Union[str, Path]) -> str:
+    """The name GDAL opens for a band location: /vsicurl/ for http(s), the local path for file://."""
+    text = str(location)
+    lower = text.lower()
+    if lower.startswith(("http://", "https://")):
+        return f"/vsicurl/{text}"
+    if lower.startswith("file://"):
+        parsed = urlparse(text)
+        return unquote(parsed.path)
+    return text
 
 
 def brightness(stac_item: StacItemInput, common_name: str) -> Tuple[float, float]:
     """(scale, offset) that turns the raw values of a band into reflectance, by collection.
 
-    sentinel-2-c1-l2a: the asset's `raster:bands` scale and offset, applied once.
+    sentinel-2-c1-l2a: the asset's `raster:bands` scale and offset, applied once. Missing ones fail.
     sentinel2_ard: the raw values, scale 1 and offset 0.
     """
     collection = stac_item.item.get("collection")
@@ -60,7 +89,12 @@ def brightness(stac_item: StacItemInput, common_name: str) -> Tuple[float, float
         key, index = find_band(stac_item, common_name)
         raster_bands = stac_item.assets[key].get("raster:bands") or []
         entry = raster_bands[index - 1] if len(raster_bands) >= index else {}
-        return float(entry.get("scale", 1.0)), float(entry.get("offset", 0.0))
+        if "scale" not in entry or "offset" not in entry:
+            raise ValueError(
+                f"Item {stac_item.id!r} asset {key!r} band {index} has no raster:bands scale and offset; "
+                f"they are needed to turn {collection} values into reflectance"
+            )
+        return float(entry["scale"]), float(entry["offset"])
     raise ValueError(
         f"Item {stac_item.id!r} is in collection {collection!r}; supported collections: {list(SUPPORTED_COLLECTIONS)}"
     )

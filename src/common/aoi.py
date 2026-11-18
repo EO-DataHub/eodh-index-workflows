@@ -9,17 +9,23 @@ on that grid, which `write_cog_chunked` reads as one more input, so no chunk nee
 import json
 import math
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Callable, Iterator, Optional, Sequence, Tuple
 from xml.sax.saxutils import escape
 
 import numpy as np
 import rasterio
 from affine import Affine
+from rasterio.dtypes import dtype_rev, typename_fwd
+from rasterio.errors import RasterioIOError
 from rasterio.features import rasterize
+from rasterio.io import DatasetReader
 from rasterio.warp import transform_bounds, transform_geom
 
 from eodh_workflow import Band, write_cog_chunked
+
+from .bands import gdal_path
 
 AOI_TYPES = ("Polygon", "MultiPolygon")
 
@@ -72,7 +78,7 @@ def aoi_grid(item_id: str, src, geometry: dict) -> Tuple[Tuple[int, int, int, in
         "EPSG:4326", src.crs, *_geometry_bounds(geometry), densify_pts=_DENSIFY_POINTS
     )
     inverse = ~src.transform
-    corners = [inverse * (x, y) for x in (left, right) for y in (bottom, top)]
+    corners = [inverse @ (x, y) for x in (left, right) for y in (bottom, top)]
     col0 = max(math.floor(min(c for c, _ in corners)), 0)
     row0 = max(math.floor(min(r for _, r in corners)), 0)
     col1 = min(math.ceil(max(c for c, _ in corners)), src.width)
@@ -81,7 +87,7 @@ def aoi_grid(item_id: str, src, geometry: dict) -> Tuple[Tuple[int, int, int, in
         raise ValueError(f"AOI does not overlap item {item_id}")
 
     width, height = col1 - col0, row1 - row0
-    transform = src.transform * Affine.translation(col0, row0)
+    transform = src.transform @ Affine.translation(col0, row0)
     projected = transform_geom("EPSG:4326", src.crs, geometry)
     touched = rasterize([projected], out_shape=(height, width), transform=transform, all_touched=True)
     if not touched.any():
@@ -93,7 +99,7 @@ def aoi_grid(item_id: str, src, geometry: dict) -> Tuple[Tuple[int, int, int, in
 def _vrt_band(src, band: Band, window: Tuple[int, int, int, int], transform: Affine, path: Path) -> Band:
     """A one-band VRT of `band` cut to `window`, so every input shares the output grid."""
     col, row, width, height = window
-    data_type = rasterio.dtypes._gdal_typename(src.dtypes[band.index - 1])
+    data_type = typename_fwd[dtype_rev[src.dtypes[band.index - 1]]]
     nodata = src.nodatavals[band.index - 1]
     nodata_xml = f"<NoDataValue>{nodata!r}</NoDataValue>" if nodata is not None else ""
     path.write_text(
@@ -102,13 +108,24 @@ def _vrt_band(src, band: Band, window: Tuple[int, int, int, int], transform: Aff
         f"<GeoTransform>{', '.join(repr(v) for v in transform.to_gdal())}</GeoTransform>"
         f'<VRTRasterBand dataType="{data_type}" band="1">{nodata_xml}'
         "<SimpleSource>"
-        f'<SourceFilename relativeToVRT="0">{escape(str(band.path))}</SourceFilename>'
+        f'<SourceFilename relativeToVRT="0">{escape(gdal_path(band.path))}</SourceFilename>'
         f"<SourceBand>{band.index}</SourceBand>"
         f'<SrcRect xOff="{col}" yOff="{row}" xSize="{width}" ySize="{height}"/>'
         f'<DstRect xOff="0" yOff="0" xSize="{width}" ySize="{height}"/>'
         "</SimpleSource></VRTRasterBand></VRTDataset>"
     )
     return Band(path, 1)
+
+
+@contextmanager
+def _open_band(band: Band) -> Iterator[DatasetReader]:
+    """Open the file of `band`, local or remote. A failed open names the band's location."""
+    try:
+        src = rasterio.open(gdal_path(band.path))
+    except RasterioIOError as error:
+        raise RasterioIOError(f"Could not read band {band.index} at {band.path}: {error}") from error
+    with src:
+        yield src
 
 
 def _write_mask(path: Path, inside: np.ndarray, crs, transform: Affine) -> Band:
@@ -141,7 +158,7 @@ def write_aoi_cog(
 
     NaN outside the AOI polygon and wherever an input pixel is nodata.
     """
-    with rasterio.open(bands[0].path) as reference:
+    with _open_band(bands[0]) as reference:
         window, transform, inside = aoi_grid(item_id, reference, geometry)
         crs, scene_transform = reference.crs, reference.transform
 
@@ -149,7 +166,7 @@ def write_aoi_cog(
         workdir = Path(workdir)
         clipped = []
         for number, band in enumerate(bands):
-            with rasterio.open(band.path) as src:
+            with _open_band(band) as src:
                 if src.crs != crs or src.transform != scene_transform:
                     raise ValueError(f"Band {band.path} is not on the same grid as {bands[0].path}")
                 clipped.append(_vrt_band(src, band, window, transform, workdir / f"band{number}.vrt"))
