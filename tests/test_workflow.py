@@ -14,7 +14,7 @@ from rasterio.warp import transform_bounds
 
 import workflow
 from eodh_workflow import WorkflowInputs
-from golden_data import AOI_JSON, ITEM_IDS, box, polygon_mask, read_output, run_ndvi
+from golden_data import AOI_JSON, ITEM_IDS, box, item_json_path, polygon_mask, read_output, run_ndvi
 
 SRC = Path(workflow.__file__).parent
 L2A_ID = ITEM_IDS["l2a"]
@@ -176,6 +176,18 @@ def test_stage1_ndvi_scales_l2a_once_and_treats_values_at_or_below_zero_as_nodat
             assert np.isnan(actual), (r, c)
         else:
             assert actual == pytest.approx(expected, abs=1e-5), (r, c)
+
+
+def test_stage1_l2a_without_scale_and_offset_fails_naming_item_and_asset(l2a_staged, tmp_path):
+    path = item_json_path(l2a_staged)
+    item = json.loads(path.read_text())
+    del item["assets"]["red"]["raster:bands"]
+    path.write_text(json.dumps(item))
+
+    with pytest.raises(Exception) as raised:
+        run_ndvi(l2a_staged, tmp_path / "out")
+    assert L2A_ID in str(raised.value)
+    assert "red" in str(raised.value)
 
 
 def test_stage1_output_item_and_collection_follow_the_ndvi_product(l2a_staged, tmp_path):
