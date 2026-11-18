@@ -72,6 +72,8 @@ def gdal_path(location: Union[str, Path]) -> str:
         return f"/vsicurl/{text}"
     if lower.startswith("file://"):
         parsed = urlparse(text)
+        if parsed.netloc.lower() not in ("", "localhost"):
+            raise ValueError(f"Cannot read {text!r}: a file:// href must have no host or 'localhost'")
         return unquote(parsed.path)
     return text
 
@@ -79,7 +81,8 @@ def gdal_path(location: Union[str, Path]) -> str:
 def brightness(stac_item: StacItemInput, common_name: str) -> Tuple[float, float]:
     """(scale, offset) that turns the raw values of a band into reflectance, by collection.
 
-    sentinel-2-c1-l2a: the asset's `raster:bands` scale and offset, applied once. Missing ones fail.
+    sentinel-2-c1-l2a: the asset's `raster:bands` scale and offset, applied once. A missing scale
+    fails; a missing offset is 0, as in the STAC raster extension.
     sentinel2_ard: the raw values, scale 1 and offset 0.
     """
     collection = stac_item.item.get("collection")
@@ -89,12 +92,12 @@ def brightness(stac_item: StacItemInput, common_name: str) -> Tuple[float, float
         key, index = find_band(stac_item, common_name)
         raster_bands = stac_item.assets[key].get("raster:bands") or []
         entry = raster_bands[index - 1] if len(raster_bands) >= index else {}
-        if "scale" not in entry or "offset" not in entry:
+        if "scale" not in entry:
             raise ValueError(
-                f"Item {stac_item.id!r} asset {key!r} band {index} has no raster:bands scale and offset; "
-                f"they are needed to turn {collection} values into reflectance"
+                f"Item {stac_item.id!r} asset {key!r} band {index} has no raster:bands scale; "
+                f"it is needed to turn {collection} values into reflectance"
             )
-        return float(entry["scale"]), float(entry["offset"])
+        return float(entry["scale"]), float(entry.get("offset", 0.0))
     raise ValueError(
         f"Item {stac_item.id!r} is in collection {collection!r}; supported collections: {list(SUPPORTED_COLLECTIONS)}"
     )

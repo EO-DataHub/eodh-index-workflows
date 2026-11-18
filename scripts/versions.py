@@ -1,11 +1,11 @@
 """
-Keep the workflow's version the same in pyproject.toml, the CWL `s:softwareVersion`, and the
-CWL `dockerPull` tag.
+Keep the version the same in pyproject.toml and in the `s:softwareVersion` and `dockerPull` tag of
+every CWL file in cwl/. All products share one image and one version.
 
     python scripts/versions.py check [--tag vX.Y.Z]   fail if the versions (and the git tag) differ
-    python scripts/versions.py bump X.Y.Z             set all three
+    python scripts/versions.py bump X.Y.Z             set them all
     python scripts/versions.py image                  print the dockerPull image
-    python scripts/versions.py workflow-id            print the CWL Workflow id
+    python scripts/versions.py workflow-id CWL        print the Workflow id in the CWL file
 """
 
 import re
@@ -43,6 +43,10 @@ def check(tag=None) -> int:
     if len(set(found.values())) != 1:
         print("Versions differ. Run `make bump VERSION=x.y.z`.", file=sys.stderr)
         return 1
+    images = {match.group(2) for cwl in CWL_FILES for match in DOCKER_PULL.finditer(cwl.read_text())}
+    if len(images) > 1:
+        print(f"Every CWL must use the same image; found {sorted(images)}", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -65,8 +69,8 @@ def main(argv) -> int:
     if argv == ["image"]:
         print(DOCKER_PULL.search(CWL_FILES[0].read_text()).group(2) + ":" + versions()["pyproject.toml version"])
         return 0
-    if argv == ["workflow-id"]:
-        print(WORKFLOW_ID.search(CWL_FILES[0].read_text()).group(1))
+    if argv[:1] == ["workflow-id"] and len(argv) == 2:
+        print(WORKFLOW_ID.search(Path(argv[1]).read_text()).group(1))
         return 0
     print(__doc__, file=sys.stderr)
     return 2
