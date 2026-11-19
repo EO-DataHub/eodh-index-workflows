@@ -3,8 +3,11 @@
 
 export PYTHONPATH := src
 IMAGE = $(shell uv run --quiet python scripts/versions.py image)
-WORKFLOW_ID = $(shell uv run --quiet python scripts/versions.py workflow-id)
 FIXTURE ?= tests/fixtures/input_item.json
+# `make run` runs one product without Docker, on a staged item and an AOI.
+WORKFLOW ?= eodh-ndvi
+STAC_ITEM_DIR ?= tests/fixtures/golden/l2a/staged
+AOI_FILE ?= tests/fixtures/golden/aoi.geojson
 
 .PHONY: install lint format test validate-cwl check fixture run image check-docker bump versions helpers-checksum clean
 
@@ -29,22 +32,29 @@ validate-cwl:  ## Level 4: cwltool --validate on every CWL file
 check: lint test validate-cwl  ## Levels 1-4
 	uv run python scripts/versions.py check
 
-fixture:  ## Write a stage-in directory for the fixture item to build/staged
+fixture:  ## Write a synthetic stage-in directory for FIXTURE to build/staged
 	rm -rf build/staged
 	uv run python -m eodh_workflow stage $(FIXTURE) build/staged
 
-run: fixture  ## Run src/main.py on the fixture, without Docker, into build/out
+run:  ## Run WORKFLOW on STAC_ITEM_DIR and AOI_FILE, without Docker, into build/out
 	rm -rf build/out
-	uv run python src/main.py --stac_item_dir=build/staged --output_dir=build/out
+	uv run python src/main.py --stac_item_dir=$(STAC_ITEM_DIR) --output_dir=build/out \
+		--workflow=$(WORKFLOW) --aoi="$$(cat $(AOI_FILE))"
 	uv run python -m eodh_workflow validate build/out
 
 image:  ## Build the linux/amd64 image with the tag in the CWL dockerPull
 	docker buildx build --platform linux/amd64 --load -t $(IMAGE) .
 
-check-docker: image fixture  ## Level 5: run the CWL in the image through cwltool, as a non-root user, and validate
+check-docker: image  ## Level 5: run each CWL in the image on its cwl/<name>.job.yml fixture, and validate
 	rm -rf build/cwl-out
-	uv run cwltool --outdir build/cwl-out cwl/workflow.cwl#$(WORKFLOW_ID) --stac_item build/staged
-	uv run python -m eodh_workflow validate "$$(find build/cwl-out -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+	for cwl in cwl/*.cwl; do \
+		job="$${cwl%.cwl}.job.yml"; \
+		test -f "$$job" || { echo "$$cwl has no fixture $$job" >&2; exit 1; }; \
+		id="$$(uv run --quiet python scripts/versions.py workflow-id "$$cwl")" || exit 1; \
+		out="build/cwl-out/$$id"; \
+		uv run cwltool --outdir "$$out" "$$cwl#$$id" "$$job" || exit 1; \
+		uv run python -m eodh_workflow validate "$$(find "$$out" -mindepth 1 -maxdepth 1 -type d | head -n 1)" || exit 1; \
+	done
 
 bump:  ## Set the workflow version everywhere: make bump VERSION=x.y.z
 	@test -n "$(VERSION)" || (echo "usage: make bump VERSION=x.y.z" && exit 1)

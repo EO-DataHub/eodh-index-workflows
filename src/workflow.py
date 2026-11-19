@@ -1,48 +1,39 @@
 """
-Example workflow: NDVI from the red and nir bands of one staged STAC item.
+Dispatcher: runs the product named by the `workflow` parameter.
 
-Replace this file with your own code. Keep the `run(inputs, output_dir) -> OutputSpec` signature.
+Each module in `products/` is one product. It sets `NAME` (the value of `--workflow`) and
+`run(inputs, output_dir) -> OutputSpec`. Adding a module adds a product; this file does not change.
 """
 
+import importlib
+import pkgutil
 from pathlib import Path
+from types import ModuleType
+from typing import Dict
 
-import numpy as np
-
-from eodh_workflow import CollectionSpec, ItemSpec, OutputSpec, RasterAsset, WorkflowInputs, write_cog_chunked
-
-RENDERS = {
-    "ndvi": {
-        "title": "NDVI",
-        "assets": ["data"],
-        "rescale": [[-1, 1]],
-        "colormap_name": "rdylgn",
-        "resampling": "average",
-    }
-}
+import products
+from eodh_workflow import OutputSpec, WorkflowInputs
 
 
-def ndvi(nir: np.ndarray, red: np.ndarray) -> np.ndarray:
-    """(NIR - Red) / (NIR + Red), NaN where the denominator is 0."""
-    denominator = nir + red
-    with np.errstate(divide="ignore", invalid="ignore"):
-        result = np.where(denominator != 0, (nir - red) / denominator, np.nan)
-    return np.clip(result, -1, 1).astype("float32")
+def find_products() -> Dict[str, ModuleType]:
+    """Every product module in `products/`, keyed by its `NAME`."""
+    found: Dict[str, ModuleType] = {}
+    for info in pkgutil.iter_modules(products.__path__):
+        module = importlib.import_module(f"{products.__name__}.{info.name}")
+        name = getattr(module, "NAME", None)
+        if not name or not callable(getattr(module, "run", None)):
+            continue
+        if name in found:
+            raise ValueError(f"Product name {name!r} is set by both {found[name].__name__} and {module.__name__}")
+        found[name] = module
+    return found
 
 
 def run(inputs: WorkflowInputs, output_dir: Path) -> OutputSpec:
-    item = inputs.stac_item
-    item_id = f"{item.id}_ndvi"
-    cog = output_dir / f"{item_id}.tif"
-    # Reads in chunks sized to the container's memory limit; NaN wherever an input pixel is nodata.
-    write_cog_chunked([item.band("nir"), item.band("red")], cog, ndvi)
-
-    return OutputSpec(
-        collection=CollectionSpec(
-            id="ndvi",
-            title="NDVI",
-            description="Normalised Difference Vegetation Index, (NIR - Red) / (NIR + Red), in [-1, 1].",
-            keywords=["ndvi", "vegetation"],
-            renders=RENDERS,
-        ),
-        items=[ItemSpec(id=item_id, source_item=item, assets={"data": RasterAsset(cog, bands=[{"name": "ndvi"}])})],
-    )
+    known = find_products()
+    name = inputs.params.get("workflow")
+    if not name:
+        raise ValueError(f"No --workflow parameter. Known workflows: {sorted(known)}")
+    if name not in known:
+        raise ValueError(f"Unknown workflow {name!r}. Known workflows: {sorted(known)}")
+    return known[name].run(inputs, output_dir)

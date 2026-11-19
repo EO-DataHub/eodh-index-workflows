@@ -18,6 +18,14 @@ ENV UV_COMPILE_BYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 
+# GDAL options for reading remote COGs by range request: no directory listing on open, retry
+# transient HTTP errors, merge range requests, and cache the blocks already read.
+ENV GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR \
+    GDAL_HTTP_MAX_RETRY=5 \
+    GDAL_HTTP_RETRY_DELAY=1 \
+    GDAL_HTTP_MULTIRANGE=YES \
+    VSI_CACHE=TRUE
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project && rm -rf /root/.cache/uv
 

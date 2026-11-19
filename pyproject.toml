@@ -1,7 +1,7 @@
 [project]
 name = "eodh-workflow-starter"
-# The workflow's version. It must match `s:softwareVersion` and the `dockerPull` tag in cwl/workflow.cwl.
-# Change all three with `make bump VERSION=x.y.z`.
+# The version of the image and every product. It must match `s:softwareVersion` and the `dockerPull` tag in each cwl/*.cwl.
+# Change them all with `make bump VERSION=x.y.z`.
 version = "0.1.0"
 description = "Starter for EODH Workflow Runner workflows that write renderable STAC outputs"
 readme = "README.md"

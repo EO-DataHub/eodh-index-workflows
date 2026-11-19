@@ -1,7 +1,7 @@
 cwlVersion: v1.2
 $namespaces:
   s: https://schema.org/
-# Must equal the pyproject.toml version and the dockerPull tag. Change all three with `make bump VERSION=x.y.z`.
+# Must equal the pyproject.toml version and the dockerPull tag. Change all of them with `make bump VERSION=x.y.z`.
 s:softwareVersion: 0.1.0
 schemas:
   - http://schema.org/version/9.0/schemaorg-current-http.rdf
@@ -9,19 +9,25 @@ schemas:
 $graph:
   # The Workflow's id is the workflow ID on the Hub.
   - class: Workflow
-    id: eodh-workflow-starter-ndvi
-    label: NDVI (EODH workflow starter example)
-    doc: Computes NDVI from a STAC item's red and nir bands and writes a COG with renderable STAC.
+    id: eodh-ndvi
+    label: NDVI
+    doc: >-
+      Normalised Difference Vegetation Index, (nir - red) / (nir + red), for one Sentinel-2 L2A or
+      Sentinel-2 ARD item over an area of interest. Writes a COG clipped to the area, with renderable STAC.
     requirements:
       # The runner sizes the job's pods from the largest ResourceRequirement in the file.
       - class: ResourceRequirement
         coresMax: 2
-        ramMax: 2048
+        ramMax: 4096
     inputs:
       stac_item:
         label: STAC item
-        doc: The STAC item to compute NDVI from. It needs assets with red and nir bands.
+        doc: A sentinel-2-c1-l2a or sentinel2_ard item with red and nir bands.
         type: Directory
+      aoi:
+        label: Area of interest
+        doc: A GeoJSON Polygon, MultiPolygon, or a Feature with one of those, in EPSG:4326.
+        type: string
     outputs:
       - id: results
         type: Directory
@@ -32,18 +38,22 @@ $graph:
         run: "#main-tool"
         in:
           stac_item_dir: stac_item
+          aoi: aoi
         out: [results]
 
   - class: CommandLineTool
     id: main-tool
     requirements:
       - class: ResourceRequirement
-        coresMax: 1
-        ramMax: 512
+        coresMax: 2
+        ramMax: 4096
+      - class: NetworkAccess
+        networkAccess: true
     hints:
       DockerRequirement:
-        dockerPull: ghcr.io/geodowd/eodh-workflow-starter:0.1.0
+        dockerPull: ghcr.io/eo-datahub/eodh-index-workflows:0.1.0
     baseCommand: ["python3", "/app/main.py"]
+    arguments: ["--workflow=eodh-ndvi"]
     inputs:
       stac_item_dir:
         type: Directory
@@ -51,6 +61,11 @@ $graph:
           prefix: --stac_item_dir=
           separate: false
           valueFrom: $(self.path)
+      aoi:
+        type: string
+        inputBinding:
+          prefix: --aoi=
+          separate: false
     outputs:
       results:
         type: Directory

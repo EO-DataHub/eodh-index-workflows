@@ -12,7 +12,7 @@ A template for one workflow. It has a working example, NDVI from one STAC item, 
 | `src/*.py` (other files) | Extra modules that `workflow.py` imports | You |
 | `src/main.py` | Entrypoint that the CWL calls. Reads the inputs, calls `run()`, writes the STAC. | Nobody |
 | `src/eodh_workflow/` | Helpers: stage-in reader, STAC writer, COG writer, memory, validation, test helpers | Nobody |
-| `cwl/workflow.cwl` | The workflow definition the Hub runs | You |
+| `cwl/<workflow ID>.cwl` | The workflow definition the Hub runs | You |
 | `tests/fixtures/input_item.json` | One real STAC item from the input collection | You |
 | `tests/test_*.py` | Tests for your workflow | You |
 | `tests/helpers/` | Tests for the helpers | Nobody |
@@ -120,7 +120,7 @@ If the specs cannot express something, use the escape hatches in this order:
 
 ### Step 3: Update the CWL
 
-Edit `cwl/workflow.cwl`:
+Edit `cwl/<workflow ID>.cwl`:
 
 1. Set the `Workflow` `id` to the workflow ID.
 2. Set `label` and `doc`. The Hub shows them to users.
@@ -150,7 +150,7 @@ For fetch mode, make these changes too:
         networkAccess: true
    ```
 
-4. Edit `check-docker` in the `Makefile`: replace `--stac_item build/staged` with your inputs, for example `--item_url https://...`.
+4. Put your inputs in `cwl/<workflow ID>.job.yml`, the fixture `make check-docker` runs the CWL on, for example `item_url: https://...`.
 
 Keep the `$graph` form with one `Workflow` and one `CommandLineTool`. Keep the `results` output with `glob: "."`.
 
@@ -193,7 +193,7 @@ For fetch mode, stage the fixture the same way, and monkeypatch the fetch in the
 Level 6 needs the Hub, so the human does it. Copy this list into your final message:
 
 - [ ] Release the image (see [Release](#7-release)), and make the GHCR package public.
-- [ ] Deploy `cwl/workflow.cwl` to a workspace on the Hub.
+- [ ] Deploy `cwl/<workflow ID>.cwl` to a workspace on the Hub.
 - [ ] Run a job with a real input item.
 - [ ] The job status is `successful`.
 - [ ] The job's `/results` link shows a catalog with one collection and the expected items.
@@ -246,7 +246,7 @@ This version does not support these. If the workflow needs one, tell the human a
 | `ImportError: libexpat.so.1: cannot open shared object file` | The rasterio wheel needs `libexpat1`, which `python:*-slim` does not have. | Keep `libexpat1` in the `apt-get install` line. |
 | A new run replaced the outputs of an earlier run. | The collection ID is fixed. | Return a `CollectionSpec` and let `write_outputs` make the collection ID. Do not set the collection ID in `customise`. |
 | The job succeeds but the map shows nothing, or a grey or white square. | A render is missing, uses the wrong asset key, or has a `rescale` outside the data range. | Check `rescale` against the band `statistics` in the item JSON. Check that the render's `assets` are the raster's asset key. |
-| `cwltool`: "Tool file contains graph of multiple objects, must specify one of #..." | A `$graph` file needs the process to run. | Add `#<workflow ID>` to the path: `cwltool cwl/workflow.cwl#<workflow ID> ...`. `make check-docker` does this. |
+| `cwltool`: "Tool file contains graph of multiple objects, must specify one of #..." | A `$graph` file needs the process to run. | Add `#<workflow ID>` to the path: `cwltool cwl/<workflow ID>.cwl#<workflow ID> ...`. `make check-docker` does this. |
 | `cwltool` pulls the image, or fails to pull it. | The local image tag does not match `dockerPull`. | Run `make image`, which tags the image with the `dockerPull` value. |
 | `OutputError: Files in the output directory that no asset references` | `run()` left temporary files in `output_dir`. | Delete them before `run()` returns, or add them as assets. |
 | `test_helpers_unchanged` fails. | Something changed `src/eodh_workflow/`. | Undo the change: `git checkout -- src/eodh_workflow`. |
@@ -256,8 +256,8 @@ This version does not support these. If the workflow needs one, tell the human a
 A workflow has its own version, `x.y.z`. Three places hold it, and they must match:
 
 - `version` in `pyproject.toml`;
-- `s:softwareVersion` in `cwl/workflow.cwl`;
-- the `dockerPull` tag in `cwl/workflow.cwl`.
+- `s:softwareVersion` in `cwl/<workflow ID>.cwl`;
+- the `dockerPull` tag in `cwl/<workflow ID>.cwl`.
 
 `make versions` shows all three. `make bump VERSION=x.y.z` sets all three.
 

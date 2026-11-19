@@ -1,49 +1,72 @@
-# EODH workflow starter
+# EODH index workflows
 
-A template for a workflow that runs on the EO DataHub Workflow Runner and writes STAC outputs that the Hub's map viewer can render.
+Spectral index workflows for the EO DataHub Workflow Runner. Each product rebuilds one of EOPro's products as a Hub workflow: it runs on one STAC item over a drawn area of interest, and writes a Cloud Optimised GeoTIFF (COG) with STAC that the Hub's map viewer can render.
 
-The example workflow computes NDVI from the red and near-infrared bands of one Sentinel-2 item. It writes a Cloud Optimised GeoTIFF (COG), and a STAC catalog with renders, that pass every check from a unit test to a run of the Docker image through `cwltool`.
+All products share one Docker image and one version. Each product has its own CWL file and its own workflow catalogue record.
 
-To turn your own code into a workflow, give a coding agent [AGENTS.md](AGENTS.md), or follow it yourself. It lists what to decide first, the conversion steps, the rules the Hub depends on, and how to release.
+The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AGENTS.md) describes the template's rules, checks and release steps, which still apply.
 
-## Start a workflow from the template
+## Products
 
-Prerequisites:
+| Workflow ID | What it calculates | Collections | CWL | Record |
+|---|---|---|---|---|
+| `eodh-ndvi` | NDVI, `(nir - red) / (nir + red)`, the same values as EOPro. Shown with `ylgn` from -0.2 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-ndvi.cwl](cwl/eodh-ndvi.cwl) | [records/eodh-ndvi.json](records/eodh-ndvi.json) |
 
-- [uv](https://docs.astral.sh/uv/)
-- Docker with `buildx`, for `make check-docker`
+Every product takes two inputs:
 
-Steps:
+- `stac_item`: the staged STAC item (`Directory`).
+- `aoi`: the area of interest, a GeoJSON Polygon, MultiPolygon, or a Feature with one of those, as a string. Pixels outside it are NaN.
 
-1. On GitHub, select **Use this template**, then create the repository in the EO-DataHub organisation.
-2. Clone the new repository.
-3. Install the dependencies and the pre-commit hooks:
-
-   ```bash
-   make install
-   ```
-
-4. Run the checks:
-
-   ```bash
-   make check
-   make check-docker
-   ```
-
-5. Follow [AGENTS.md](AGENTS.md) to replace the example with your code.
-
-`make help` lists every command.
+The CWL passes the product name to the image as the fixed argument `--workflow=<workflow ID>`. Users and the catalogue never see it.
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `src/workflow.py` | The workflow's code. Replace the example with yours. |
-| `src/main.py` | The entrypoint that the CWL calls |
-| `src/eodh_workflow/` | Helpers. Do not edit them. |
-| `cwl/workflow.cwl` | The workflow definition that the Hub runs |
-| `tests/` | Tests. `tests/fixtures/input_item.json` is a real input item. |
+| `src/workflow.py` | The dispatcher. It finds the products in `src/products/` and runs the one named by `--workflow`. |
+| `src/products/` | One module per product. Each sets `NAME` (the workflow ID) and `run()`. |
+| `src/common/` | Code the products share: AOI handling, band lookup and the brightness rule. |
+| `src/main.py` | The entrypoint that the CWL calls. Do not edit it. |
+| `src/eodh_workflow/` | Helpers from the template. Do not edit them. |
+| `cwl/<workflow ID>.cwl` | The workflow definition that the Hub runs, one per product |
+| `cwl/<workflow ID>.job.yml` | The fixture that `make check-docker` runs the CWL on |
+| `records/<workflow ID>.json` | The product's `workflow-catalogue` record |
+| `scripts/make_golden.py` | Writes the EOPro golden arrays in `tests/fixtures/golden/`. Run by hand in an `eodh-workflows` environment. |
+| `tests/` | Tests, including the EOPro parity tests |
+
+## Checks
+
+Prerequisites: [uv](https://docs.astral.sh/uv/), and Docker with `buildx` for `make check-docker`.
+
+```bash
+make install       # dependencies and pre-commit hooks
+make check         # lint, tests, cwltool --validate on every CWL, versions
+make check-docker  # build the image and run every CWL on its fixture through cwltool
+make run           # run one product without Docker: make run WORKFLOW=eodh-ndvi
+```
+
+`make help` lists every command.
+
+## How to add a product
+
+Adding a product needs no change to shared code: no edit to `src/workflow.py`, the `Makefile` or `scripts/`.
+
+1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. Use `src/common/` for the AOI, the bands (`band()`) and the brightness rule. Set the `CollectionSpec` id to the workflow ID.
+2. **CWL.** Copy `cwl/eodh-ndvi.cwl` to `cwl/eodh-<name>.cwl`. Change the `Workflow` `id`, `label` and `doc`, and the tool's `arguments` to `["--workflow=eodh-<name>"]`. Keep the image and version.
+3. **Fixture.** Add `cwl/eodh-<name>.job.yml` with the staged item and AOI that `make check-docker` runs it on.
+4. **Record.** Copy `records/eodh-ndvi.json` to `records/eodh-<name>.json`. Change the `id`, title, description, keywords, `applicableCollections` and the `application` link.
+5. **Tests.** Add tests for the product's values, and parity tests against EOPro golden arrays where EOPro has the product.
+6. Run `make check` and `make check-docker`, and add the product to the table above.
+
+## Versions and release
+
+One version covers the image and every product. It is in `pyproject.toml`, and in `s:softwareVersion` and the `dockerPull` tag of every CWL in `cwl/`.
+
+- `make versions` shows the version in each place.
+- `make bump VERSION=x.y.z` sets it everywhere.
+
+Release by pushing a `vX.Y.Z` tag; see [AGENTS.md](AGENTS.md#7-release). The image is `ghcr.io/eo-datahub/eodh-index-workflows`.
 
 ## Helpers version
 
-The helpers' version is in `src/eodh_workflow/__init__.py`, and changes are in [CHANGELOG.md](CHANGELOG.md). Each version is a tag of this repository.
+The helpers' version is in `src/eodh_workflow/__init__.py`, and changes are in [CHANGELOG.md](CHANGELOG.md).
