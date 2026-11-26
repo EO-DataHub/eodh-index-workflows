@@ -17,7 +17,7 @@ from golden_data import AOI, ITEM_IDS
 ROOT = Path(__file__).resolve().parent.parent
 CWL = ROOT / "cwl" / "eodh-ndvi.cwl"
 RECORD = ROOT / "records" / "eodh-ndvi.json"
-JOB = ROOT / "cwl" / "eodh-ndvi.job.yml"
+JOB = ROOT / "cwl" / "eodh-ndvi.job.json"
 
 
 def _graph(cwl_path: Path) -> dict:
@@ -141,7 +141,7 @@ def test_cwl_takes_the_item_url_as_a_string_passed_as_stac_item():
 
 
 def test_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
-    job = yaml.safe_load(JOB.read_text())
+    job = json.loads(JOB.read_text())
     assert set(job) == {"stac_item", "aoi"}
     url = job["stac_item"]
     assert isinstance(url, str)

@@ -31,7 +31,7 @@ The CWL passes the product name to the image as the fixed argument `--workflow=<
 | `src/main.py` | The entrypoint that the CWL calls. Do not edit it. |
 | `src/eodh_workflow/` | Helpers from the template. Do not edit them. |
 | `cwl/<workflow ID>.cwl` | The workflow definition that the Hub runs, one per product |
-| `cwl/<workflow ID>.job.yml` | The fixture that `make check-docker` runs the CWL on |
+| `cwl/<workflow ID>.job.json` | The fixture that `make check-docker` runs the CWL on |
 | `records/<workflow ID>.json` | The product's `workflow-catalogue` record |
 | `scripts/make_golden.py` | Writes the EOPro golden arrays in `tests/fixtures/golden/`. Run by hand in an `eodh-workflows` environment. |
 | `tests/` | Tests, including the EOPro parity tests |
@@ -55,7 +55,7 @@ Adding a product needs no change to shared code: no edit to `src/workflow.py`, t
 
 1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. Use `src/common/` for the AOI, the bands (`band()`) and the brightness rule. Set the `CollectionSpec` id to the workflow ID.
 2. **CWL.** Copy `cwl/eodh-ndvi.cwl` to `cwl/eodh-<name>.cwl`. Change the `Workflow` `id`, `label` and `doc`, and the tool's `arguments` to `["--workflow=eodh-<name>"]`. Keep the image and version.
-3. **Fixture.** Add `cwl/eodh-<name>.job.yml` with the item URL and AOI that `make check-docker` runs it on.
+3. **Fixture.** Add `cwl/eodh-<name>.job.json` with the item URL and AOI that `make check-docker` runs it on.
 4. **Record.** Copy `records/eodh-ndvi.json` to `records/eodh-<name>.json`. Change the `id`, title, description, keywords, `applicableCollections` and the `application` link.
 5. **Tests.** Add tests for the product's values, and parity tests against EOPro golden arrays where EOPro has the product.
 6. Run `make check` and `make check-docker`, and add the product to the table above.

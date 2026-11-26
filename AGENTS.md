@@ -150,7 +150,7 @@ For fetch mode, make these changes too:
         networkAccess: true
    ```
 
-4. Put your inputs in `cwl/<workflow ID>.job.yml`, the fixture `make check-docker` runs the CWL on, for example `stac_item: https://...`.
+4. Put your inputs in `cwl/<workflow ID>.job.json`, the fixture `make check-docker` runs the CWL on, for example `{"stac_item": "https://...", "aoi": "..."}`.
 
 Keep the `$graph` form with one `Workflow` and one `CommandLineTool`. Keep the `results` output with `glob: "."`.
 

@@ -45,10 +45,10 @@ run:  ## Run WORKFLOW on STAC_ITEM_DIR and AOI_FILE, without Docker, into build/
 image:  ## Build the linux/amd64 image with the tag in the CWL dockerPull
 	docker buildx build --platform linux/amd64 --load -t $(IMAGE) .
 
-check-docker: image  ## Level 5: run each CWL in the image on its cwl/<name>.job.yml fixture, and validate
+check-docker: image  ## Level 5: run each CWL in the image on its cwl/<name>.job.json fixture, and validate
 	rm -rf build/cwl-out
 	for cwl in cwl/*.cwl; do \
-		job="$${cwl%.cwl}.job.yml"; \
+		job="$${cwl%.cwl}.job.json"; \
 		test -f "$$job" || { echo "$$cwl has no fixture $$job" >&2; exit 1; }; \
 		id="$$(uv run --quiet python scripts/versions.py workflow-id "$$cwl")" || exit 1; \
 		out="build/cwl-out/$$id"; \
