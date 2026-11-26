@@ -1,18 +1,23 @@
-"""Stage 3: the eodh-ndvi CWL and catalogue record, versions over every CWL, and the README."""
+"""The eodh-ndvi CWL and catalogue record, versions over every CWL, the job fixture and the README."""
 
+import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
+from urllib.parse import urlparse
 from pathlib import Path
 
 import pytest
 import yaml
 
+from golden_data import AOI, ITEM_IDS
+
 ROOT = Path(__file__).resolve().parent.parent
 CWL = ROOT / "cwl" / "eodh-ndvi.cwl"
 RECORD = ROOT / "records" / "eodh-ndvi.json"
+JOB = ROOT / "cwl" / "eodh-ndvi.job.yml"
 
 
 def _graph(cwl_path: Path) -> dict:
@@ -35,7 +40,6 @@ def test_stage3_cwl_runs_the_ndvi_product_from_the_image():
 
     inputs = _names(workflow["inputs"])
     assert set(inputs) == {"stac_item", "aoi"}
-    assert inputs["stac_item"]["type"] == "Directory"
     assert inputs["aoi"]["type"] == "string"
 
     assert tool["arguments"] == ["--workflow=eodh-ndvi"]
@@ -108,3 +112,50 @@ def test_stage3_readme_lists_products_and_how_to_add_one():
     assert re.search(r"^#+ .*add.*product", readme, re.IGNORECASE | re.MULTILINE)
     for part in ("src/products/", "cwl/", "records/"):
         assert part in readme, part
+
+
+def _all_types(node) -> list:
+    """Every `type` value of every input in a CWL process, whichever form the inputs use."""
+    return [entry if isinstance(entry, str) else entry.get("type") for entry in _names(node["inputs"]).values()]
+
+
+def test_cwl_takes_the_item_url_as_a_string_passed_as_stac_item():
+    nodes, _ = _graph(CWL)
+    workflow, tool = nodes["Workflow"], nodes["CommandLineTool"]
+    assert _names(workflow["inputs"])["stac_item"]["type"] == "string"
+
+    bound = [
+        entry
+        for entry in _names(tool["inputs"]).values()
+        if isinstance(entry, dict) and (entry.get("inputBinding") or {}).get("prefix") == "--stac_item="
+    ]
+    assert len(bound) == 1
+    assert bound[0]["type"] == "string"
+    assert bound[0]["inputBinding"].get("separate") is False
+
+    for node in (workflow, tool):
+        assert not [t for t in _all_types(node) if "Directory" in str(t)], node["id"]
+    assert "stac_item_dir" not in CWL.read_text()
+    requirements = {**_names(tool.get("requirements", [])), **_names(tool.get("hints", []))}
+    assert requirements["NetworkAccess"].get("networkAccess") is True
+
+
+def test_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
+    job = yaml.safe_load(JOB.read_text())
+    assert set(job) == {"stac_item", "aoi"}
+    url = job["stac_item"]
+    assert isinstance(url, str)
+    host = urlparse(url).hostname
+    assert url.startswith("https://") and (
+        host == "eodatahub.org.uk" or (host is not None and host.endswith(".eodatahub.org.uk"))
+    )
+    assert "sentinel-2-c1-l2a" in url
+    assert url.rstrip("/").endswith(ITEM_IDS["l2a"])
+    assert json.loads(job["aoi"]) == AOI
+
+
+def test_record_is_unchanged_and_keeps_raster_stac_item():
+    record = json.loads(RECORD.read_text())
+    digest = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
+    assert digest == "6d879ffab7aed11715f809b51fa5b6aae68a830e8111eecb68aa20667b621b0d"
+    assert record["properties"]["inputParameters"]["stac_item"]["type"] == "raster"

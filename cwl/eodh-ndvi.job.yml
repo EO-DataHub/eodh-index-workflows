@@ -1,5 +1,3 @@
-# The fixture `make check-docker` runs cwl/eodh-ndvi.cwl on. Paths are relative to this file.
-stac_item:
-  class: Directory
-  path: ../tests/fixtures/golden/l2a/staged
+# The fixture `make check-docker` runs cwl/eodh-ndvi.cwl on. The workflow fetches the item, so this needs the network.
+stac_item: https://eodatahub.org.uk/api/catalogue/stac/catalogs/public/catalogs/element84/collections/sentinel-2-c1-l2a/items/S2B_T30UXC_20230608T112118_L2A
 aoi: '{"type": "Polygon", "coordinates": [[[-1.345, 51.735], [-1.315, 51.735], [-1.315, 51.753], [-1.345, 51.753], [-1.345, 51.735]]]}'

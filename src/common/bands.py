@@ -1,7 +1,7 @@
 """Band lookup by STAC common name, and the brightness rule for each supported collection."""
 
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 from urllib.parse import unquote, urlparse
 
 from eodh_workflow import Band, StacItemInput
@@ -10,12 +10,6 @@ from eodh_workflow.inputs import asset_bands, band_common_name, is_geotiff
 L2A = "sentinel-2-c1-l2a"
 ARD = "sentinel2_ard"
 SUPPORTED_COLLECTIONS = (L2A, ARD)
-
-
-def require_item(stac_item: Optional[StacItemInput]) -> StacItemInput:
-    if stac_item is None:
-        raise ValueError("This workflow needs a staged STAC item (--stac_item_dir), and none was given")
-    return stac_item
 
 
 def find_band(stac_item: StacItemInput, common_name: str) -> Tuple[str, int]:
@@ -59,6 +53,12 @@ def band(stac_item: StacItemInput, common_name: str) -> Band:
     """
     key, index = find_band(stac_item, common_name)
     href = stac_item.assets[key].get("href") or ""
+    scheme = urlparse(href).scheme
+    if scheme and not is_remote(href):
+        raise ValueError(
+            f"Cannot read asset {key!r} of item {stac_item.id!r} at {href}: only http(s):// and file:// hrefs "
+            "can be read without credentials"
+        )
     if is_remote(href):
         return Band(href, index)
     return Band(stac_item.asset_path(key), index)
