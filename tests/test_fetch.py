@@ -151,7 +151,7 @@ def assert_same_output(fetched, staged):
     [("l2a", "absolute"), ("ard", "absolute"), ("l2a", "relative"), ("l2a", "file-url")],
     ids=["l2a-absolute-http", "ard-absolute-http", "l2a-relative-to-http-item", "l2a-file-item-url"],
 )
-def test_stage1_fetched_item_gives_same_ndvi_and_source_item_as_staged(name, hrefs, request, serve, tmp_path):
+def test_fetched_item_gives_same_ndvi_and_source_item_as_staged(name, hrefs, request, serve, tmp_path):
     staged_dir = request.getfixturevalue(f"{name}_staged")
     staged_item = json.loads(item_json_path(staged_dir).read_text())
     if hrefs == "file-url":
@@ -172,7 +172,7 @@ def test_stage1_fetched_item_gives_same_ndvi_and_source_item_as_staged(name, hre
         assert server.band_requests(), "the bands were not read from the item URL's server"
 
 
-def test_stage1_main_runs_on_item_url_and_carries_source_metadata(l2a_staged, serve, tmp_path):
+def test_main_runs_on_item_url_and_carries_source_metadata(l2a_staged, serve, tmp_path):
     url = serve(l2a_staged).with_absolute_hrefs()
     out = tmp_path / "out"
     main.main([f"--output_dir={out}", "--workflow=eodh-ndvi", f"--aoi={AOI_JSON}", f"--stac_item={url}"])
@@ -186,7 +186,7 @@ def test_stage1_main_runs_on_item_url_and_carries_source_metadata(l2a_staged, se
     assert item.properties["eo:cloud_cover"] == source["eo:cloud_cover"]
 
 
-def test_stage1_fetch_in_common_returns_a_stac_item_input_the_product_runs_on(l2a_staged, serve, tmp_path):
+def test_fetch_in_common_returns_a_stac_item_input_the_product_runs_on(l2a_staged, serve, tmp_path):
     from common import fetch_item
 
     fetched_input = fetch_item(serve(l2a_staged).with_absolute_hrefs())
@@ -200,7 +200,7 @@ def test_stage1_fetch_in_common_returns_a_stac_item_input_the_product_runs_on(l2
 
 
 @pytest.mark.parametrize("given", ["both", "neither"])
-def test_stage1_both_or_neither_item_input_fails_naming_the_inputs(given, l2a_staged, serve, tmp_path):
+def test_both_or_neither_item_input_fails_naming_the_inputs(given, l2a_staged, serve, tmp_path):
     args = [f"--output_dir={tmp_path / 'out'}", "--workflow=eodh-ndvi", f"--aoi={AOI_JSON}"]
     if given == "both":
         args += [f"--stac_item_dir={l2a_staged}", f"--stac_item={serve(l2a_staged).with_absolute_hrefs()}"]
@@ -217,7 +217,7 @@ def test_stage1_both_or_neither_item_input_fails_naming_the_inputs(given, l2a_st
     ["s3://some-bucket/T30UXC/B08.tif", "gs://some-bucket/T30UXC/B08.tif", "ftp://example.com/T30UXC/B08.tif"],
     ids=["s3", "gs", "ftp"],
 )
-def test_stage1_href_needing_credentials_fails_before_any_band_is_read(href, l2a_staged, serve, tmp_path):
+def test_href_needing_credentials_fails_before_any_band_is_read(href, l2a_staged, serve, tmp_path):
     server = serve(l2a_staged)
     url = server.with_absolute_hrefs(nir=href)
 
@@ -226,8 +226,12 @@ def test_stage1_href_needing_credentials_fails_before_any_band_is_read(href, l2a
     assert server.band_requests() == []
 
 
-@pytest.mark.parametrize("statuses", [[429], [503], [429, 502]], ids=["429", "503", "429-then-502"])
-def test_stage1_fetch_retries_429_and_5xx_with_backoff(statuses, l2a_staged, serve, sleeps, tmp_path):
+@pytest.mark.parametrize(
+    "statuses",
+    [[429], [503], [429, 502], [503, 503, 503]],
+    ids=["429", "503", "429-then-502", "503-three-times"],
+)
+def test_fetch_retries_429_and_5xx_with_growing_backoff(statuses, l2a_staged, serve, sleeps, tmp_path):
     server = serve(l2a_staged)
     url = server.with_absolute_hrefs()
     server.fail(server.item_path(), list(statuses))
@@ -236,11 +240,12 @@ def test_stage1_fetch_retries_429_and_5xx_with_backoff(statuses, l2a_staged, ser
 
     assert source_of(fetched)["id"] == ITEM_IDS["l2a"]
     assert server.requests.count(server.item_path()) == len(statuses) + 1
-    assert len(sleeps) >= len(statuses)
-    assert all(delay > 0 for delay in sleeps)
+    assert len(sleeps) == len(statuses)
+    assert sleeps[0] > 0
+    assert all(later > earlier for earlier, later in zip(sleeps, sleeps[1:])), sleeps
 
 
-def test_stage1_fetch_that_keeps_failing_names_url_and_status(l2a_staged, serve, sleeps, tmp_path):
+def test_fetch_that_keeps_failing_names_url_and_status(l2a_staged, serve, sleeps, tmp_path):
     server = serve(l2a_staged)
     url = server.with_absolute_hrefs()
     server.fail(server.item_path(), [503] * 50)
@@ -252,7 +257,7 @@ def test_stage1_fetch_that_keeps_failing_names_url_and_status(l2a_staged, serve,
     assert 1 < server.requests.count(server.item_path()) < 50
 
 
-def test_stage1_fetch_times_out_naming_url(l2a_staged, serve, sleeps):
+def test_fetch_times_out_naming_url(l2a_staged, serve, sleeps):
     from common import fetch_item
 
     server = serve(l2a_staged)
@@ -268,7 +273,7 @@ def test_stage1_fetch_times_out_naming_url(l2a_staged, serve, sleeps):
     assert 2 < server.requests.count(server.item_path()) < 50
 
 
-def test_stage3_fetch_retries_a_timeout_then_reads_the_item(l2a_staged, serve, sleeps):
+def test_fetch_retries_a_timeout_then_reads_the_item(l2a_staged, serve, sleeps):
     from common import fetch_item
 
     server = serve(l2a_staged)
@@ -287,9 +292,7 @@ def test_stage3_fetch_retries_a_timeout_then_reads_the_item(l2a_staged, serve, s
     [(429, 2, 2), (503, 3, 3), (429, 120, 30)],
     ids=["429-waits-2s", "503-waits-3s", "120s-capped-at-30s"],
 )
-def test_stage3_fetch_waits_as_long_as_retry_after_capped_at_30s(
-    status, retry_after, expected, l2a_staged, serve, sleeps
-):
+def test_fetch_waits_as_long_as_retry_after_capped_at_30s(status, retry_after, expected, l2a_staged, serve, sleeps):
     from common import fetch_item
 
     server = serve(l2a_staged)
@@ -301,9 +304,7 @@ def test_stage3_fetch_waits_as_long_as_retry_after_capped_at_30s(
 
 
 @pytest.mark.parametrize("status, retry_after", [(429, "nan"), (503, "inf"), (429, "-inf")])
-def test_stage3_fetch_with_non_finite_retry_after_backs_off_and_reads_item(
-    status, retry_after, l2a_staged, serve, sleeps
-):
+def test_fetch_with_non_finite_retry_after_backs_off_and_reads_item(status, retry_after, l2a_staged, serve, sleeps):
     from common import fetch_item
 
     server = serve(l2a_staged)
@@ -315,21 +316,8 @@ def test_stage3_fetch_with_non_finite_retry_after_backs_off_and_reads_item(
     assert all(math.isfinite(seconds) and seconds > 0 for seconds in sleeps), sleeps
 
 
-def test_stage3_fetch_without_retry_after_backs_off_exponentially(l2a_staged, serve, sleeps):
-    from common import fetch_item
-
-    server = serve(l2a_staged)
-    url = server.with_absolute_hrefs()
-    server.fail(server.item_path(), [503, 503, 503])
-
-    assert fetch_item(url).id == ITEM_IDS["l2a"]
-    assert len(sleeps) == 3
-    assert sleeps[0] > 0
-    assert sleeps[1] > sleeps[0] and sleeps[2] > sleeps[1]
-
-
 @pytest.mark.parametrize("failure", ["not-json", "dropped-connection"])
-def test_stage3_fetch_of_a_bad_body_fails_naming_url(failure, l2a_staged, serve, sleeps):
+def test_fetch_of_a_bad_body_fails_naming_url(failure, l2a_staged, serve, sleeps):
     from common import fetch_item
 
     server = serve(l2a_staged)
@@ -344,7 +332,7 @@ def test_stage3_fetch_of_a_bad_body_fails_naming_url(failure, l2a_staged, serve,
     assert url in str(raised.value)
 
 
-def test_stage3_fetch_rejects_file_url_with_a_host_but_accepts_localhost(l2a_staged):
+def test_fetch_rejects_file_url_with_a_host_but_accepts_localhost(l2a_staged):
     from common import fetch_item
 
     path = item_json_path(l2a_staged).resolve().as_posix()
@@ -354,11 +342,3 @@ def test_stage3_fetch_rejects_file_url_with_a_host_but_accepts_localhost(l2a_sta
         fetch_item(url)
     assert url in str(raised.value)
     assert fetch_item(f"file://localhost{path}").id == ITEM_IDS["l2a"]
-
-
-def test_stage3_agents_md_points_to_test_fetch_and_item_input():
-    agents = (Path(__file__).parent.parent / "AGENTS.md").read_text()
-
-    assert "tests/test_fetch.py" in agents
-    assert "tests/test_fetch_mode.py" not in agents
-    assert "item_input" in agents

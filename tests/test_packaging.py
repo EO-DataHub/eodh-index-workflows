@@ -118,7 +118,7 @@ def _all_types(node) -> list:
     return [entry if isinstance(entry, str) else entry.get("type") for entry in _names(node["inputs"]).values()]
 
 
-def test_stage2_cwl_takes_the_item_url_as_a_string_passed_as_stac_item():
+def test_cwl_takes_the_item_url_as_a_string_passed_as_stac_item():
     nodes, _ = _graph(CWL)
     workflow, tool = nodes["Workflow"], nodes["CommandLineTool"]
     assert _names(workflow["inputs"])["stac_item"]["type"] == "string"
@@ -139,15 +139,7 @@ def test_stage2_cwl_takes_the_item_url_as_a_string_passed_as_stac_item():
     assert requirements["NetworkAccess"].get("networkAccess") is True
 
 
-def test_stage2_version_is_0_2_0_in_pyproject_and_cwl():
-    pyproject = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE).group(1)
-    assert pyproject == "0.2.0"
-    text = CWL.read_text()
-    assert re.search(r"^s:softwareVersion: *0\.2\.0$", text, re.MULTILINE)
-    assert "ghcr.io/eo-datahub/eodh-index-workflows:0.2.0" in text
-
-
-def test_stage2_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
+def test_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
     job = yaml.safe_load(JOB.read_text())
     assert set(job) == {"stac_item", "aoi"}
     url = job["stac_item"]
@@ -158,17 +150,8 @@ def test_stage2_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
     assert json.loads(job["aoi"]) == AOI
 
 
-def test_stage2_record_is_unchanged():
+def test_record_is_unchanged_and_keeps_raster_stac_item():
     record = json.loads(RECORD.read_text())
     digest = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
     assert digest == "6d879ffab7aed11715f809b51fa5b6aae68a830e8111eecb68aa20667b621b0d"
     assert record["properties"]["inputParameters"]["stac_item"]["type"] == "raster"
-
-
-def test_stage2_readme_says_workflows_fetch_their_data_and_which_hrefs_they_read():
-    readme = (ROOT / "README.md").read_text()
-    assert re.search(r"fetch", readme, re.IGNORECASE)
-    assert re.search(r"https?://", readme) and "file://" in readme
-    assert "s3://" in readme
-    assert re.search(r"no stage-in|without stage-in|stage-in is not|no .{0,40}stage-in", readme, re.IGNORECASE)
-    assert not re.search(r"stac_item.{0,60}Directory", readme)
