@@ -27,7 +27,7 @@ The CWL passes the product name to the image as the fixed argument `--workflow=<
 |---|---|
 | `src/workflow.py` | The dispatcher. It finds the products in `src/products/` and runs the one named by `--workflow`. |
 | `src/products/` | One module per product. Each sets `NAME` (the workflow ID) and `run()`. |
-| `src/common/` | Code the products share: AOI handling, band lookup and the brightness rule. |
+| `src/common/` | Code the products share: AOI handling, band lookup, the brightness rule, and `run_index_product`, which makes a single-index product. |
 | `src/main.py` | The entrypoint that the CWL calls. Do not edit it. |
 | `src/eodh_workflow/` | Helpers from the template. Do not edit them. |
 | `cwl/<workflow ID>.cwl` | The workflow definition that the Hub runs, one per product |
@@ -54,7 +54,14 @@ make run           # run one product without Docker: make run WORKFLOW=eodh-ndvi
 
 Adding a product needs no change to shared code: no edit to `src/workflow.py`, the `Makefile` or `scripts/`. It needs no stage-in either: the product gets its bands through `band()`, which reads them from the fetched item.
 
-1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. Use `src/common/` for the AOI, the bands (`band()`) and the brightness rule. Set the `CollectionSpec` id to the workflow ID.
+1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. For a single-index product, `run()` only calls `run_index_product` from `common`, as `src/products/ndvi.py` does. It passes:
+   - `name`: the workflow ID, `NAME`;
+   - `index`: the short index name, used for the item ID suffix, the band name and the render key;
+   - `bands`: the STAC common names of the input bands, for example `("red", "nir")`. The output is on the grid of the first band;
+   - `formula`: a function that takes each band's reflectance as a keyword argument named by its common name, for example `def ndvi(red, nir)`;
+   - `title`, `description`, `keywords`, and `render`: the render's `rescale` and `colormap_name`.
+
+   `run_index_product` does the rest: it reads the item with `item_input`, scales each band to reflectance with `brightness()`, sets reflectance <= 0 to nodata, writes the AOI COG and returns the `OutputSpec`. A product that is not a single index writes its own `run()` with the other parts of `src/common/`: the AOI, the bands (`band()`) and the brightness rule. Set the `CollectionSpec` id to the workflow ID.
 2. **CWL.** Copy `cwl/eodh-ndvi.cwl` to `cwl/eodh-<name>.cwl`. Change the `Workflow` `id`, `label` and `doc`, and the tool's `arguments` to `["--workflow=eodh-<name>"]`. Keep the image and version.
 3. **Fixture.** Add `cwl/eodh-<name>.job.json` with the item URL and AOI that `make check-docker` runs it on.
 4. **Record.** Copy `records/eodh-ndvi.json` to `records/eodh-<name>.json`. Change the `id`, title, description, keywords, `applicableCollections` and the `application` link.
