@@ -56,7 +56,7 @@ def run(inputs: WorkflowInputs, output_dir: Path) -> OutputSpec: ...
 - `inputs.stac_item` is the staged item (`StacItemInput`), or `None` in fetch mode.
 - `inputs.params` is a `dict` of every other CWL input, as strings. Optional inputs that the job left out are not in it.
 
-Use these to read the staged item:
+Read the item through `item_input(inputs)` from `common`. It returns the staged item, or fetches the item at `params["stac_item"]`. Use these on the item it returns:
 
 | Call | Returns |
 |---|---|
@@ -170,13 +170,13 @@ Do not use `pip`. The image installs exactly what is in `uv.lock`. If a package 
 2. Run `make fixture`. It writes `build/staged`, a stage-in directory with small synthetic rasters that match the item's band layout.
 3. If the synthetic values do not suit the workflow, pass `values={"red": 500, ...}` to `stage_item` in `tests/conftest.py`.
 
-For fetch mode, stage the fixture the same way, and monkeypatch the fetch in the tests. `tests/test_fetch_mode.py` shows how.
+For fetch mode, stage the fixture the same way, and serve it from a local HTTP server in the tests. `tests/test_fetch.py` shows how.
 
 ### Step 6: Write the tests
 
 1. Replace `tests/test_workflow.py` with unit tests for `run()` and the functions it calls. Check output values, not only that files exist.
 2. Keep `tests/test_end_to_end.py`. Change it only if the workflow needs params: add them to the `main.main([...])` call.
-3. Delete `tests/test_fetch_mode.py` if the workflow uses stage-in. Keep it as a pattern if the workflow uses fetch mode.
+3. Delete `tests/test_fetch.py` if the workflow uses stage-in. Keep it as a pattern if the workflow uses fetch mode.
 
 ### Step 7: Run `make check`
 
