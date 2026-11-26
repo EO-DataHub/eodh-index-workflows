@@ -11,6 +11,8 @@ The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AG
 | Workflow ID | What it calculates | Collections | CWL | Record |
 |---|---|---|---|---|
 | `eodh-ndvi` | NDVI, `(nir - red) / (nir + red)`, the same values as EOPro. Shown with `ylgn` from -0.2 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-ndvi.cwl](cwl/eodh-ndvi.cwl) | [records/eodh-ndvi.json](records/eodh-ndvi.json) |
+| `eodh-evi` | EVI, `2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)`, the same values as EOPro. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-evi.cwl](cwl/eodh-evi.cwl) | [records/eodh-evi.json](records/eodh-evi.json) |
+| `eodh-savi` | SAVI as EOPro computes it, `(nir - red) / ((nir + red + 0.5) * 1.5)`. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-savi.cwl](cwl/eodh-savi.cwl) | [records/eodh-savi.json](records/eodh-savi.json) |
 
 Every product takes two inputs:
 
