@@ -3,6 +3,7 @@
 import http.client
 import json
 import logging
+import math
 import socket
 import time
 import urllib.error
@@ -68,11 +69,15 @@ def fetch_item(url: str, timeout: float = FETCH_TIMEOUT) -> StacItemInput:
 
 
 def _retry_after(error: urllib.error.HTTPError) -> Optional[float]:
-    """The Retry-After header of `error` in seconds, capped at MAX_RETRY_AFTER; None if absent or not seconds."""
+    """The Retry-After header of `error` in seconds, capped at MAX_RETRY_AFTER; None if absent or not finite seconds."""
     value = (error.headers.get("Retry-After") if error.headers else None) or ""
     try:
         seconds = float(value.strip())
     except ValueError:
+        return None
+    if seconds == math.inf:
+        return MAX_RETRY_AFTER
+    if not math.isfinite(seconds):
         return None
     return min(max(seconds, 0.0), MAX_RETRY_AFTER)
 
@@ -89,7 +94,7 @@ def _is_timeout(error: BaseException) -> bool:
 
 
 def _get(url: str, timeout: float) -> bytes:
-    """The body at `url`. Retries timeouts, dropped connections, 429 and 5xx; honours Retry-After in seconds."""
+    """The body at `url`. Retries timeouts, connection errors, 429 and 5xx; honours Retry-After in seconds."""
     problem = ""
     wait: Optional[float] = None
     last_error: Optional[BaseException] = None
@@ -110,7 +115,7 @@ def _get(url: str, timeout: float) -> bytes:
             if _is_timeout(error):
                 problem, last_error = f"a timeout after {timeout:g}s", error
             elif isinstance(_cause(error), (http.client.IncompleteRead, ConnectionError)):
-                problem, last_error = f"a dropped connection ({_cause(error)!r})", error
+                problem, last_error = f"a connection error ({_cause(error)!r})", error
             else:
                 raise RuntimeError(f"Could not fetch STAC item {url}: {_cause(error)}") from error
     attempts = FETCH_RETRIES + 1

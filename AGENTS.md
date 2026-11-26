@@ -53,16 +53,16 @@ def run(inputs: WorkflowInputs, output_dir: Path) -> OutputSpec: ...
 
 `inputs` has two fields:
 
-- `inputs.stac_item` is the staged item (`StacItemInput`), or `None` in fetch mode.
+- `inputs.stac_item` is the staged item, or `None` in fetch mode. Do not use it directly.
 - `inputs.params` is a `dict` of every other CWL input, as strings. Optional inputs that the job left out are not in it.
 
-Read the item through `item_input(inputs)` from `common`. It returns the staged item, or fetches the item at `params["stac_item"]`. Use these on the item it returns:
+Read the item with `item = item_input(inputs)` from `common`. It returns the staged item, or fetches the item at `params["stac_item"]`. Use these on `item`:
 
 | Call | Returns |
 |---|---|
-| `inputs.stac_item.band("red")` | `Band(path, index)` for the band with that STAC common name. Works for one-asset-per-band items and for multi-band assets. |
-| `inputs.stac_item.asset_path("cog")` | Local path of an asset |
-| `inputs.stac_item.item` | The item JSON as a `dict` |
+| `common.band(item, "red")` | `Band(path, index)` for the band with that STAC common name. Works for local and http(s) hrefs, for one-asset-per-band items and for multi-band assets. |
+| `item.asset_path("cog")` | Local path of an asset. Stage-in only: it fails on http(s) hrefs. |
+| `item.item` | The item JSON as a `dict` |
 
 Write every output file under `output_dir`, and nowhere else. Write rasters with one of these:
 
@@ -141,8 +141,8 @@ Bind each tool input as `--<name>=<value>`, the form `main.py` reads:
 
 For fetch mode, make these changes too:
 
-1. Delete the `stac_item` input from the `Workflow`, and `stac_item_dir` from the step and the tool.
-2. Add the string inputs, for example `item_url`.
+1. Keep the `stac_item` input on the `Workflow`, and change its type to `string`.
+2. Remove `stac_item_dir` from the step and the tool. Pass `stac_item` to the tool instead, with `prefix: --stac_item=` and `separate: false`.
 3. Add network access to the tool's `requirements`:
 
    ```yaml
@@ -150,7 +150,7 @@ For fetch mode, make these changes too:
         networkAccess: true
    ```
 
-4. Put your inputs in `cwl/<workflow ID>.job.yml`, the fixture `make check-docker` runs the CWL on, for example `item_url: https://...`.
+4. Put your inputs in `cwl/<workflow ID>.job.yml`, the fixture `make check-docker` runs the CWL on, for example `stac_item: https://...`.
 
 Keep the `$graph` form with one `Workflow` and one `CommandLineTool`. Keep the `results` output with `glob: "."`.
 
@@ -176,7 +176,7 @@ For fetch mode, stage the fixture the same way, and serve it from a local HTTP s
 
 1. Replace `tests/test_workflow.py` with unit tests for `run()` and the functions it calls. Check output values, not only that files exist.
 2. Keep `tests/test_end_to_end.py`. Change it only if the workflow needs params: add them to the `main.main([...])` call.
-3. Delete `tests/test_fetch.py` if the workflow uses stage-in. Keep it as a pattern if the workflow uses fetch mode.
+3. Keep `tests/test_fetch.py` in every workflow. It tests `item_input` and the fetch code, which stage-in workflows use too. In fetch mode, use it as a pattern for your own tests.
 
 ### Step 7: Run `make check`
 
