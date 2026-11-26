@@ -6,8 +6,8 @@ import re
 import shutil
 import subprocess
 import sys
-from urllib.parse import urlparse
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 import yaml
