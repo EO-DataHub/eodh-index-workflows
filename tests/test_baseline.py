@@ -259,6 +259,22 @@ def test_stage1_no_matching_item_fails_naming_collection_range_and_tile(catalogu
     assert "31UCT" not in message
 
 
+def test_stage1_ard_no_matching_item_names_the_tile_from_the_item_id(catalogue):
+    cat = catalogue("ard")
+    other_tile = "S2B_20230520_latn518lonw0008_T31UCT_ORB137_20230520120350_utm30n_osgb"
+    cat.answer(
+        [cat.candidate(other_tile, "2023-05-20T11:00:00Z", cloud=0.0, **{"proj:transform": OTHER_ORBIT_TRANSFORM})]
+    )
+
+    with pytest.raises(Exception) as raised:
+        find(cat)
+    message = str(raised.value)
+    assert cat.collection in message
+    assert BASELINE in message
+    assert "30UXC" in message
+    assert "31UCT" not in message
+
+
 @pytest.mark.parametrize("statuses", [[429], [503], [429, 502, 503]], ids=["429", "503", "429-502-503"])
 def test_stage1_search_retries_429_and_5xx_with_growing_backoff(statuses, catalogue, sleeps):
     cat = catalogue("l2a")
