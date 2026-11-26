@@ -14,6 +14,7 @@ The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AG
 | `eodh-evi` | EVI, `2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)`, the same values as EOPro. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-evi.cwl](cwl/eodh-evi.cwl) | [records/eodh-evi.json](records/eodh-evi.json) |
 | `eodh-savi` | SAVI as EOPro computes it, `(nir - red) / ((nir + red + 0.5) * 1.5)`. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-savi.cwl](cwl/eodh-savi.cwl) | [records/eodh-savi.json](records/eodh-savi.json) |
 | `eodh-nbr` | NBR, `(nir - swir22) / (nir + swir22)`, the same values as EOPro, on the 10 m `nir` grid. Shown with `rdylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-nbr.cwl](cwl/eodh-nbr.cwl) | [records/eodh-nbr.json](records/eodh-nbr.json) |
+| `eodh-ndwi` | NDWI, `(green - nir) / (green + nir)`, the same values as EOPro. High values are water. Shown with `rdbu` from -1 to 1, so water is blue. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-ndwi.cwl](cwl/eodh-ndwi.cwl) | [records/eodh-ndwi.json](records/eodh-ndwi.json) |
 
 Every product takes two inputs:
 

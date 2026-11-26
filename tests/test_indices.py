@@ -1,4 +1,4 @@
-"""The single-index products (NDVI, EVI, SAVI, NBR) on the shared index function, and bands on mixed grids."""
+"""The single-index products (NDVI, EVI, SAVI, NBR, NDWI) on the shared index function, and bands on mixed grids."""
 
 import hashlib
 import importlib
@@ -46,6 +46,19 @@ NDVI_GRID = {
 NDVI_CWL_SHA256 = "fdbc8fe11706babbe8e0ed8ad4cfab25db405034245a204652c10115a4f853f9"
 
 
+# sha256 of each earlier product's CWL with its version replaced by VERSION, and of its record, recorded at 0.3.0.
+EARLIER_CWL_SHA256 = {
+    "evi": "f880e0780429cdc091bee898670c3af449f5ae3bb75b833494b1e0ccb77289d1",
+    "savi": "75e7c2dae614711b32f04fea28b44baf5a42d9e321db8acdcaf90cd6d39cc135",
+    "nbr": "48313630b0989ddce8634fe4b342ee85d7b32450c4e8bb7d89f15067dc2ca3a4",
+}
+EARLIER_RECORD_SHA256 = {
+    "evi": "08817828c5d27801dccb8a6d03eeeb5ac2985b54c2285f536ec3f7f1ab3291e8",
+    "savi": "fb11aff06c7386c0abe2a4fe0049bab5accd67bfdece78e7e255398d8f5b2602",
+    "nbr": "ddc4dfb94274cc8eba3272db47126fd177ce580dfaa1d4a53a50f2a4fcf66ebf",
+}
+
+
 def _without_version(text: str) -> str:
     text = re.sub(r"(s:softwareVersion: *)\S+", r"\1VERSION", text)
     return re.sub(r"(eodh-index-workflows:)\S+", r"\1VERSION", text)
@@ -76,7 +89,7 @@ def test_ndvi_cwl_is_unchanged_apart_from_the_version():
     assert hashlib.sha256(text.encode()).hexdigest() == NDVI_CWL_SHA256
 
 
-@pytest.mark.parametrize("product", ["ndvi", "evi", "savi", "nbr"])
+@pytest.mark.parametrize("product", ["ndvi", "evi", "savi", "nbr", "ndwi"])
 def test_product_module_leaves_the_shared_steps_to_the_shared_function(product):
     import common
 
@@ -89,10 +102,19 @@ def test_product_module_leaves_the_shared_steps_to_the_shared_function(product):
         assert shared_step not in source, f"{product}.py calls {shared_step}"
 
 
+@pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
+def test_earlier_product_cwl_and_record_are_unchanged_apart_from_the_version(product):
+    cwl = _without_version((ROOT / "cwl" / f"eodh-{product}.cwl").read_text())
+    assert hashlib.sha256(cwl.encode()).hexdigest() == EARLIER_CWL_SHA256[product]
+    record = json.loads((ROOT / "records" / f"eodh-{product}.json").read_text())
+    assert hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest() == EARLIER_RECORD_SHA256[product]
+
+
 NIR = np.array([0.5, 0.3, 0.05])
 RED = np.array([0.1, 0.2, 0.04])
 BLUE = np.array([0.05, 0.1, 0.03])
 SWIR22 = np.array([0.2, 0.25, 0.01])
+GREEN = np.array([0.08, 0.1, 0.06])
 
 
 @pytest.mark.parametrize(
@@ -113,6 +135,14 @@ def test_index_formula_matches_eopro(product, bands, expected):
     np.testing.assert_allclose(getattr(module, product)(**bands), expected, rtol=1e-6)
 
 
+def test_ndwi_formula_is_green_minus_nir_over_their_sum_and_high_for_water():
+    from products import ndwi
+
+    np.testing.assert_allclose(ndwi.ndwi(green=GREEN, nir=NIR), (GREEN - NIR) / (GREEN + NIR), rtol=1e-6)
+    water, vegetation = ndwi.ndwi(green=np.array([0.08, 0.05]), nir=np.array([0.02, 0.4]))
+    assert water > 0 > vegetation
+
+
 def test_evi_writes_eopro_coefficients_without_xarray_spatial():
     from products import evi
 
@@ -123,7 +153,7 @@ def test_evi_writes_eopro_coefficients_without_xarray_spatial():
 
 
 @pytest.mark.parametrize("name", ["l2a", "ard"])
-@pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
+@pytest.mark.parametrize("product", ["evi", "savi", "nbr", "ndwi"])
 def test_index_matches_eopro_golden_inside_aoi_on_the_10m_grid(product, name, request, tmp_path):
     golden, golden_transform, golden_crs = read_golden(name, product)
     staged = request.getfixturevalue(f"{name}_staged")
@@ -142,6 +172,7 @@ def test_index_matches_eopro_golden_inside_aoi_on_the_10m_grid(product, name, re
         pytest.param("evi", "ylgn", id="evi-ylgn"),
         pytest.param("savi", "ylgn", id="savi-ylgn"),
         pytest.param("nbr", "rdylgn", id="nbr-rdylgn"),
+        pytest.param("ndwi", "rdbu", id="ndwi-rdbu"),
     ],
 )
 def test_index_output_is_valid_and_renders_minus_one_to_one(product, colormap, l2a_staged, tmp_path):
@@ -165,7 +196,7 @@ def test_index_output_is_valid_and_renders_minus_one_to_one(product, colormap, l
     assert render["colormap_name"] == colormap
 
 
-@pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
+@pytest.mark.parametrize("product", ["evi", "savi", "nbr", "ndwi"])
 def test_index_is_packaged_like_ndvi(product):
     name = f"eodh-{product}"
     ndvi, cwl = _cwl_nodes(ROOT / "cwl" / "eodh-ndvi.cwl"), _cwl_nodes(ROOT / "cwl" / f"{name}.cwl")
