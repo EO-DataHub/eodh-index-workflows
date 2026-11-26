@@ -1,4 +1,4 @@
-"""Make the EOPro golden fixtures for the index parity tests (NDVI, EVI, SAVI and NBR).
+"""Make the EOPro golden fixtures for the index parity tests (NDVI, EVI, SAVI, NBR and NDWI).
 
 Run once, by hand, in an `eodh-workflows` environment at the EOPro commit below. It is not run in CI.
 
@@ -54,7 +54,7 @@ AOI = {
 FIXTURES = {
     "l2a": {
         "url": f"{STAC_API}/element84/collections/sentinel-2-c1-l2a/items/S2B_T30UXC_20230608T112118_L2A",
-        "staged_assets": ["red", "nir", "blue", "swir22"],
+        "staged_assets": ["red", "nir", "blue", "swir22", "green"],
     },
     "ard": {
         "url": (
@@ -79,7 +79,7 @@ EOPRO_L2A_COLLECTION = "sentinel-2-l2a"
 EOPRO_L2A_ASSETS = ["blue", "green", "red", "rededge1", "nir", "scl", "swir22"]
 
 # The EOPro index classes (`spectral/indices.py`) that get golden arrays, by output file name.
-INDICES = ["ndvi", "evi", "savi", "nbr"]
+INDICES = ["ndvi", "evi", "savi", "nbr", "ndwi"]
 
 # The band names EOPro gives the ARD `cog` asset (`ds/utils.py`, `prepare_s2_ard_data_array`).
 EOPRO_ARD_BANDS = ["blue", "green", "red", "rededge1", "rededge2", "rededge3", "nir", "nir08", "swir16", "swir22"]

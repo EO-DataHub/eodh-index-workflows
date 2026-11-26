@@ -247,6 +247,47 @@
         "data",
         "reflectance"
       ]
+    },
+    "green": {
+      "href": "./green.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Green - 10m",
+      "eo:bands": [
+        {
+          "name": "B03",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.045
+        }
+      ],
+      "gsd": 10,
+      "proj:shape": [
+        214,
+        221
+      ],
+      "proj:transform": [
+        10.0,
+        0.0,
+        614190.0,
+        0.0,
+        -10.0,
+        5734960.0
+      ],
+      "raster:bands": [
+        {
+          "nodata": 0,
+          "data_type": "uint16",
+          "spatial_resolution": 10,
+          "scale": 0.0001,
+          "offset": -0.1
+        }
+      ],
+      "file:checksum": "1220205c057c9304b0208c10be8c131fe07364fca9606d1f7817dc60ebf219029f31",
+      "file:size": 76585759,
+      "roles": [
+        "data",
+        "reflectance"
+      ]
     }
   },
   "bbox": [
