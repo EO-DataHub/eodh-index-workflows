@@ -14,11 +14,16 @@ The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AG
 | `eodh-evi` | EVI, `2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)`, the same values as EOPro. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-evi.cwl](cwl/eodh-evi.cwl) | [records/eodh-evi.json](records/eodh-evi.json) |
 | `eodh-savi` | SAVI as EOPro computes it, `(nir - red) / ((nir + red + 0.5) * 1.5)`. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-savi.cwl](cwl/eodh-savi.cwl) | [records/eodh-savi.json](records/eodh-savi.json) |
 | `eodh-nbr` | NBR, `(nir - swir22) / (nir + swir22)`, the same values as EOPro, on the 10 m `nir` grid. Shown with `rdylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-nbr.cwl](cwl/eodh-nbr.cwl) | [records/eodh-nbr.json](records/eodh-nbr.json) |
+| `eodh-dnbr` | dNBR, `NBR(baseline) - NBR(item)`, on the 10 m `nir` grid of the input item, and the seven USGS burn-severity classes from it (Key & Benson, 2006). dNBR is shown with `rdylgn_r` from -1 to 1, the classes with the USGS colours. Takes a `baseline` input too. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-dnbr.cwl](cwl/eodh-dnbr.cwl) | [records/eodh-dnbr.json](records/eodh-dnbr.json) |
 
-Every product takes two inputs:
+Every product takes these two inputs:
 
 - `stac_item`: the URL of the STAC item, as a string.
 - `aoi`: the area of interest, a GeoJSON Polygon, MultiPolygon, or a Feature with one of those, as a string. Pixels outside it are NaN.
+
+`eodh-dnbr` takes a third input:
+
+- `baseline`: a date range, as `start/end` (dates or datetimes, for example `2023-05-01/2023-05-31`), that ends before the input item's date. The input item is the image after the fire. The workflow finds the image before the fire itself: it searches the input item's own collection, through the item's own catalogue, for items inside the date range on the same tile whose footprint covers the area of interest. It picks the item with the least cloud (`eo:cloud_cover`); ties go to the date closest to the input item. It fails if no item matches. The output item names the baseline item it used (`eodh:baseline_item_id`, `eodh:baseline_item_href`), and links to both items with `derived_from`. Positive dNBR is burnt.
 
 The workflows fetch their own data, so ADES runs no stage-in step for them. A workflow fetches the item JSON from the URL, then reads only the area of interest from each band it needs, with HTTP range requests. It reads `http://`, `https://` and `file://` hrefs, without credentials. Relative hrefs are resolved against the item URL. Any other href, such as `s3://`, fails with a message that names it.
 
