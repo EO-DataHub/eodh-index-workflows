@@ -67,9 +67,13 @@ def _write_severity(dnbr_cog: Path, output_cog: Path) -> Path:
             "bigtiff": "IF_SAFER",
         }
         temp_path = temp_path_for(output_cog)
-        with rasterio.open(temp_path, "w", **profile) as dst:
-            for _, window in src.block_windows(1):
-                dst.write(severity(src.read(1, window=window)), 1, window=window)
+        try:
+            with rasterio.open(temp_path, "w", **profile) as dst:
+                for _, window in src.block_windows(1):
+                    dst.write(severity(src.read(1, window=window)), 1, window=window)
+        except BaseException:
+            temp_path.unlink(missing_ok=True)
+            raise
     cog_from_gtiff(temp_path, output_cog, overview_resampling="nearest")
     return output_cog
 
@@ -99,6 +103,7 @@ def run(inputs: WorkflowInputs, output_dir: Path) -> OutputSpec:
         after_nir, after_swir22, before_nir, before_swir22 = (
             reflectance(data, *rule) for data, rule in zip((after_nir, after_swir22, before_nir, before_swir22), rules)
         )
+        # Round each NBR to float32 first, so dNBR equals the difference of two eodh-nbr outputs.
         after = nbr(nir=after_nir, swir22=after_swir22).astype("float32").astype("float64")
         before = nbr(nir=before_nir, swir22=before_swir22).astype("float32").astype("float64")
         return (before - after).astype("float32")
