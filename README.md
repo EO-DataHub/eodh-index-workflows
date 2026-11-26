@@ -32,6 +32,7 @@ The CWL passes the product name to the image as the fixed argument `--workflow=<
 | `src/eodh_workflow/` | Helpers from the template. Do not edit them. |
 | `cwl/<workflow ID>.cwl` | The workflow definition that the Hub runs, one per product |
 | `cwl/<workflow ID>.job.json` | The fixture that `make check-docker` runs the CWL on |
+| `examples/<workflow ID>.<item>.execute.json` | Request bodies to run a deployed workflow on the Hub (`POST .../processes/<workflow ID>/execution`) |
 | `records/<workflow ID>.json` | The product's `workflow-catalogue` record |
 | `scripts/make_golden.py` | Writes the EOPro golden arrays in `tests/fixtures/golden/`. Run by hand in an `eodh-workflows` environment. |
 | `tests/` | Tests, including the EOPro parity tests |
