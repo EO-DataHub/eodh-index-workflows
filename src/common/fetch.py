@@ -69,7 +69,10 @@ def fetch_item(url: str, timeout: float = FETCH_TIMEOUT) -> StacItemInput:
 
 
 def _retry_after(error: urllib.error.HTTPError) -> Optional[float]:
-    """The Retry-After header of `error` in seconds, capped at MAX_RETRY_AFTER; None if absent or not finite seconds."""
+    """The Retry-After header of `error` in seconds, clamped to 0..MAX_RETRY_AFTER.
+
+    +inf gives MAX_RETRY_AFTER. An absent or non-numeric header, NaN or -inf gives None.
+    """
     value = (error.headers.get("Retry-After") if error.headers else None) or ""
     try:
         seconds = float(value.strip())
