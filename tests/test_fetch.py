@@ -29,7 +29,7 @@ class FixtureServer:
         self.root = root
         self.control_path = workdir / "control.json"
         self.log_path = workdir / "requests.log"
-        self.control = {"pages": {}, "failures": {}, "hang": []}
+        self.control = {"pages": {}, "failures": {}, "retry_after": {}, "hang": [], "hang_first": {}, "drop": []}
         self._save()
         self.process = subprocess.Popen(
             [sys.executable, str(SERVER_SCRIPT), str(root), str(self.control_path), str(self.log_path)],
@@ -64,13 +64,30 @@ class FixtureServer:
         self._save()
         return self.base + path
 
-    def fail(self, path: str, statuses: list):
-        """Answer the first requests for `path` with `statuses`, then serve it."""
+    def fail(self, path: str, statuses: list, retry_after=None):
+        """Answer the first requests for `path` with `statuses` (with a Retry-After header if given), then serve it."""
         self.control["failures"][path] = statuses
+        if retry_after is not None:
+            self.control["retry_after"][path] = retry_after
         self._save()
 
-    def hang(self, path: str):
-        self.control["hang"].append(path)
+    def hang(self, path: str, times=None):
+        """Never answer requests for `path`, or only the first `times` of them."""
+        if times is None:
+            self.control["hang"].append(path)
+        else:
+            self.control["hang_first"][path] = times
+        self._save()
+
+    def serve_page(self, path: str, body: str) -> str:
+        """Serve `body` at `path`; return its URL."""
+        self.control["pages"][path] = body
+        self._save()
+        return self.base + path
+
+    def drop(self, path: str):
+        """Close the connection part way through every response body for `path`."""
+        self.control["drop"].append(path)
         self._save()
 
     @property
@@ -244,6 +261,88 @@ def test_stage1_fetch_times_out_naming_url(l2a_staged, serve, sleeps):
     started = time.monotonic()
     with pytest.raises(Exception) as raised:
         fetch_item(url, timeout=0.5)
-    assert time.monotonic() - started < 10
+    assert time.monotonic() - started < 20
     assert url in str(raised.value)
     assert re.search(r"time", str(raised.value), re.IGNORECASE)
+    assert 2 < server.requests.count(server.item_path()) < 50
+
+
+def test_stage3_fetch_retries_a_timeout_then_reads_the_item(l2a_staged, serve, sleeps):
+    from common import fetch_item
+
+    server = serve(l2a_staged)
+    url = server.with_absolute_hrefs()
+    server.hang(server.item_path(), times=1)
+
+    fetched = fetch_item(url, timeout=0.5)
+
+    assert fetched.id == ITEM_IDS["l2a"]
+    assert server.requests.count(server.item_path()) == 2
+    assert len(sleeps) >= 1
+
+
+@pytest.mark.parametrize(
+    "status, retry_after, expected",
+    [(429, 2, 2), (503, 3, 3), (429, 120, 30)],
+    ids=["429-waits-2s", "503-waits-3s", "120s-capped-at-30s"],
+)
+def test_stage3_fetch_waits_as_long_as_retry_after_capped_at_30s(
+    status, retry_after, expected, l2a_staged, serve, sleeps
+):
+    from common import fetch_item
+
+    server = serve(l2a_staged)
+    url = server.with_absolute_hrefs()
+    server.fail(server.item_path(), [status], retry_after=retry_after)
+
+    assert fetch_item(url).id == ITEM_IDS["l2a"]
+    assert sum(sleeps) == pytest.approx(expected)
+
+
+def test_stage3_fetch_without_retry_after_backs_off_exponentially(l2a_staged, serve, sleeps):
+    from common import fetch_item
+
+    server = serve(l2a_staged)
+    url = server.with_absolute_hrefs()
+    server.fail(server.item_path(), [503, 503, 503])
+
+    assert fetch_item(url).id == ITEM_IDS["l2a"]
+    assert len(sleeps) == 3
+    assert sleeps[0] > 0
+    assert sleeps[1] > sleeps[0] and sleeps[2] > sleeps[1]
+
+
+@pytest.mark.parametrize("failure", ["not-json", "dropped-connection"])
+def test_stage3_fetch_of_a_bad_body_fails_naming_url(failure, l2a_staged, serve, sleeps):
+    from common import fetch_item
+
+    server = serve(l2a_staged)
+    if failure == "not-json":
+        url = server.serve_page(server.item_path(), "<html><body>Bad gateway</body></html>")
+    else:
+        url = server.with_absolute_hrefs()
+        server.drop(server.item_path())
+
+    with pytest.raises(Exception) as raised:
+        fetch_item(url, timeout=5)
+    assert url in str(raised.value)
+
+
+def test_stage3_fetch_rejects_file_url_with_a_host_but_accepts_localhost(l2a_staged):
+    from common import fetch_item
+
+    path = item_json_path(l2a_staged).resolve().as_posix()
+
+    url = f"file://example.com{path}"
+    with pytest.raises(ValueError) as raised:
+        fetch_item(url)
+    assert url in str(raised.value)
+    assert fetch_item(f"file://localhost{path}").id == ITEM_IDS["l2a"]
+
+
+def test_stage3_agents_md_points_to_test_fetch_and_item_input():
+    agents = (Path(__file__).parent.parent / "AGENTS.md").read_text()
+
+    assert "tests/test_fetch.py" in agents
+    assert "tests/test_fetch_mode.py" not in agents
+    assert "item_input" in agents
