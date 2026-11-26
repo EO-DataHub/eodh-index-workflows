@@ -265,3 +265,38 @@ def test_write_aoi_cog_rejects_a_band_in_another_crs(l2a_staged, tmp_path):
     with pytest.raises(ValueError, match=r"(?i)crs") as error:
         write_aoi_cog("item", [Band(paths["nir"], 1), Band(other, 1)], AOI, tmp_path / "out.tif", lambda n, s: n)
     assert str(other) in str(error.value)
+
+
+def test_index_writes_non_finite_results_as_nodata_and_valid_json(l2a_staged, tmp_path, monkeypatch):
+    """EVI's denominator can be zero. +-inf in the COG made the band statistics -Infinity, Infinity
+    and NaN, which JSON.parse rejects."""
+    import products.evi
+
+    def inf_where_nir_is_bright(nir, red, blue):
+        result = products.evi.G * (nir - red) / (nir + products.evi.C1 * red - products.evi.C2 * blue + products.evi.L)
+        result[nir > np.nanmedian(nir)] = np.inf
+        result[red > np.nanmedian(red)] = -np.inf
+        return result
+
+    monkeypatch.setattr(products.evi, "evi", inf_where_nir_is_bright)
+    output_dir = tmp_path / "out"
+    main.main(
+        [
+            f"--stac_item_dir={l2a_staged}",
+            f"--output_dir={output_dir}",
+            "--workflow=eodh-evi",
+            f"--aoi={AOI_JSON}",
+        ]
+    )
+
+    [tif] = output_dir.rglob("*_evi.tif")
+    with rasterio.open(tif) as src:
+        values = src.read(1)
+    assert not np.isinf(values).any()
+    assert np.isfinite(values).any()
+
+    def reject(constant):
+        raise ValueError(f"{constant} is not valid JSON")
+
+    for path in output_dir.rglob("*.json"):
+        json.loads(path.read_text(), parse_constant=reject)

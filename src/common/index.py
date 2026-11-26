@@ -39,7 +39,8 @@ def run_index_product(
     bands: STAC common names of the input bands. The output is on the grid of the first one; the
         others are read onto it by nearest neighbour when their grid differs.
     formula: called with each band's reflectance as a keyword argument named by its common name.
-        Reflectance <= 0 is NaN before the formula sees it.
+        Reflectance <= 0 is NaN before the formula sees it. A result that is not finite is
+        written as NaN (nodata).
     render: the render without `assets`, for example `{"rescale": [[-1, 1]], "colormap_name": "ylgn"}`.
         Its `title` defaults to `title`.
     """
@@ -50,8 +51,12 @@ def run_index_product(
 
     def compute(*raw: np.ndarray) -> np.ndarray:
         values = {common_name: reflectance(data, *rule) for common_name, data, rule in zip(names, raw, rules)}
-        with np.errstate(divide="ignore", invalid="ignore"):
-            return np.asarray(formula(**values)).astype("float32")
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            result = np.asarray(formula(**values)).astype("float32")
+        # A zero denominator (EVI's can be zero) gives +-inf. Write it as nodata: inf in the COG
+        # makes the band statistics +-Infinity and NaN, which are not valid JSON.
+        result[~np.isfinite(result)] = np.nan
+        return result
 
     item_id = f"{item.id}_{index}"
     cog = output_dir / f"{item_id}.tif"
