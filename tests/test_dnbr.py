@@ -246,3 +246,31 @@ def test_stage2_readme_lists_dnbr_and_explains_the_baseline():
 def test_stage2_version_is_bumped_past_the_nbr_release():
     version = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE).group(1)
     assert tuple(int(part) for part in version.split(".")) > (0, 3, 0)
+
+
+def test_stage3_severity_write_that_fails_part_way_leaves_no_temporary_geotiff(tmp_path, monkeypatch):
+    module = importlib.import_module("products.dnbr")
+    dnbr_cog = tmp_path / "item_dnbr.tif"
+    profile = {
+        "driver": "GTiff", "width": 600, "height": 600, "count": 1, "dtype": "float32",
+        "crs": "EPSG:32630", "transform": rasterio.transform.from_origin(500000, 5700000, 10, 10),
+        "tiled": True, "blockxsize": 512, "blockysize": 512,
+    }  # fmt: skip
+    with rasterio.open(dnbr_cog, "w", **profile) as dst:
+        dst.write(np.linspace(-0.5, 1.0, 600 * 600, dtype="float32").reshape(1, 600, 600))
+
+    classify = module.severity
+    calls = []
+
+    def fail_on_second_block(dnbr):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("disk full")
+        return classify(dnbr)
+
+    monkeypatch.setattr(module, "severity", fail_on_second_block)
+    with pytest.raises(RuntimeError, match="disk full"):
+        module._write_severity(dnbr_cog, tmp_path / "item_burn_severity.tif")
+
+    assert len(calls) == 2
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["item_dnbr.tif"]
