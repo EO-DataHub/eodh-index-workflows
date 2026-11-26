@@ -4,6 +4,7 @@ directory. The staged golden fixtures are served from a local HTTP server, so th
 """
 
 import json
+import math
 import re
 import subprocess
 import sys
@@ -297,6 +298,21 @@ def test_stage3_fetch_waits_as_long_as_retry_after_capped_at_30s(
 
     assert fetch_item(url).id == ITEM_IDS["l2a"]
     assert sum(sleeps) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("status, retry_after", [(429, "nan"), (503, "inf"), (429, "-inf")])
+def test_stage3_fetch_with_non_finite_retry_after_backs_off_and_reads_item(
+    status, retry_after, l2a_staged, serve, sleeps
+):
+    from common import fetch_item
+
+    server = serve(l2a_staged)
+    url = server.with_absolute_hrefs()
+    server.fail(server.item_path(), [status], retry_after=retry_after)
+
+    assert fetch_item(url).id == ITEM_IDS["l2a"]
+    assert sleeps
+    assert all(math.isfinite(seconds) and seconds > 0 for seconds in sleeps), sleeps
 
 
 def test_stage3_fetch_without_retry_after_backs_off_exponentially(l2a_staged, serve, sleeps):
