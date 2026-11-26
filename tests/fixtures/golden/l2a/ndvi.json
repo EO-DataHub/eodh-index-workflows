@@ -19,9 +19,11 @@
     "red",
     "rededge1",
     "nir",
-    "scl"
+    "scl",
+    "swir22"
   ],
   "stackstac_rescale_applied": true,
+  "stackstac_resampling": "nearest (default), onto the finest asset grid",
   "eopro_rescale": [
     1,
     0

@@ -1,0 +1,46 @@
+{
+  "item_id": "S2B_T30UXC_20230608T112118_L2A",
+  "collection": "sentinel-2-c1-l2a",
+  "datetime": "2023-06-08T11:26:49.667000+00:00",
+  "eopro_commit": "38cce88",
+  "crs": "EPSG:32630",
+  "shape": [
+    206,
+    213
+  ],
+  "dtype": "float32",
+  "valid_pixels": 43878,
+  "aoi": "../aoi.geojson",
+  "eopro_path": "prepare_data_array (stackstac) -> resolve_rescale_params -> SAVI.calculate_index",
+  "eopro_collection_id": "sentinel-2-l2a",
+  "eopro_assets": [
+    "blue",
+    "green",
+    "red",
+    "rededge1",
+    "nir",
+    "scl",
+    "swir22"
+  ],
+  "stackstac_rescale_applied": true,
+  "stackstac_resampling": "nearest (default), onto the finest asset grid",
+  "eopro_rescale": [
+    1,
+    0
+  ],
+  "bbox_latlon": [
+    -1.345,
+    51.735,
+    -1.315,
+    51.753
+  ],
+  "transform": [
+    10.0,
+    0.0,
+    614230.0,
+    0.0,
+    -10.0,
+    5734920.0
+  ],
+  "transform_source": "stackstac attrs"
+}

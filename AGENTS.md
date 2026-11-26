@@ -64,6 +64,8 @@ Read the item with `item = item_input(inputs)` from `common`. It returns the sta
 | `item.asset_path("cog")` | Local path of an asset. Stage-in only: it fails on http(s) hrefs. |
 | `item.item` | The item JSON as a `dict` |
 
+For a single-index product, do not write these steps yourself. Call `run_index_product(inputs, output_dir, name=..., index=..., bands=(...), formula=..., title=..., description=..., keywords=[...], render={...})` from `common`. It reads the item, scales each band to reflectance with `brightness()`, sets reflectance <= 0 to nodata, writes the AOI COG and returns the `OutputSpec`. The formula gets each band's reflectance as a keyword argument named by its STAC common name. `src/products/ndvi.py` is the example.
+
 Write every output file under `output_dir`, and nowhere else. Write rasters with one of these:
 
 - `write_cog_chunked(bands, path, fn)` reads the input bands in chunks, calls `fn(*arrays)` on each chunk, and writes a COG. The chunk size comes from the container's memory limit. Use it for any input that can be large.

@@ -1,0 +1,6 @@
+{
+  "inputs": {
+    "stac_item": "https://eodatahub.org.uk/api/catalogue/stac/catalogs/public/catalogs/ceda-stac-catalogue/collections/sentinel2_ard/items/neodc.sentinel_ard.data.sentinel_2.2023.06.08.S2B_20230608_latn518lonw0008_T30UXC_ORB037_20230608120350_utm30n_osgb",
+    "aoi": "{\"type\": \"Polygon\", \"coordinates\": [[[-1.345, 51.735], [-1.315, 51.735], [-1.315, 51.753], [-1.345, 51.753], [-1.345, 51.735]]]}"
+  }
+}

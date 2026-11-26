@@ -165,6 +165,88 @@
         "data",
         "reflectance"
       ]
+    },
+    "blue": {
+      "href": "./blue.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Blue - 10m",
+      "eo:bands": [
+        {
+          "name": "B02",
+          "common_name": "blue",
+          "center_wavelength": 0.49,
+          "full_width_half_max": 0.098
+        }
+      ],
+      "gsd": 10,
+      "proj:shape": [
+        214,
+        221
+      ],
+      "proj:transform": [
+        10.0,
+        0.0,
+        614190.0,
+        0.0,
+        -10.0,
+        5734960.0
+      ],
+      "raster:bands": [
+        {
+          "nodata": 0,
+          "data_type": "uint16",
+          "spatial_resolution": 10,
+          "scale": 0.0001,
+          "offset": -0.1
+        }
+      ],
+      "file:checksum": "122073441a7d9839734b67eb2972fa5405cccae098035e8670a856b0b6e699b277ca",
+      "file:size": 73443928,
+      "roles": [
+        "data",
+        "reflectance"
+      ]
+    },
+    "swir22": {
+      "href": "./swir22.tif",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "SWIR 2.2\u03bcm - 20m",
+      "eo:bands": [
+        {
+          "name": "B12",
+          "common_name": "swir22",
+          "center_wavelength": 2.19,
+          "full_width_half_max": 0.242
+        }
+      ],
+      "gsd": 20,
+      "proj:shape": [
+        111,
+        115
+      ],
+      "proj:transform": [
+        20.0,
+        0.0,
+        614140.0,
+        0.0,
+        -20.0,
+        5735000.0
+      ],
+      "raster:bands": [
+        {
+          "nodata": 0,
+          "data_type": "uint16",
+          "spatial_resolution": 20,
+          "scale": 0.0001,
+          "offset": -0.1
+        }
+      ],
+      "file:checksum": "1220980bd5d7cb7887c9fe9086d291b0773ec261a17f434c6c997223ab8891cb68b0",
+      "file:size": 21107329,
+      "roles": [
+        "data",
+        "reflectance"
+      ]
     }
   },
   "bbox": [
