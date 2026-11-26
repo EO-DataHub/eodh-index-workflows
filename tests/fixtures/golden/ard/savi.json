@@ -1,0 +1,30 @@
+{
+  "item_id": "neodc.sentinel_ard.data.sentinel_2.2023.06.08.S2B_20230608_latn518lonw0008_T30UXC_ORB037_20230608120350_utm30n_osgb",
+  "collection": "sentinel2_ard",
+  "datetime": "2023-06-08T11:21:19+00:00",
+  "eopro_commit": "38cce88",
+  "crs": "EPSG:27700",
+  "shape": [
+    203,
+    210
+  ],
+  "dtype": "float32",
+  "valid_pixels": 41878,
+  "aoi": "../aoi.geojson",
+  "eopro_path": "_prepare_s2_ard_data_array_clip (no reprojection) -> where > 0 -> SAVI.calculate_index",
+  "eopro_collection_id": "sentinel2_ard",
+  "eopro_rescale": [
+    1,
+    0
+  ],
+  "clip": "rasterio.mask.mask(all_touched=True, crop=True) to the AOI polygon",
+  "transform": [
+    10.0,
+    0.0,
+    445310.0,
+    0.0,
+    -10.0,
+    206260.0
+  ],
+  "transform_source": "rioxarray (pixel-centre coordinates)"
+}

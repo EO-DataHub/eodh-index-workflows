@@ -1,4 +1,4 @@
-"""Shared helpers for the NDVI tests: the staged golden fixtures, running the workflow, and grid maths."""
+"""Shared helpers for the index tests: the staged golden fixtures, running the workflow, and grid maths."""
 
 import json
 import shutil
@@ -29,12 +29,17 @@ def item_json_path(staged: Path) -> Path:
     return path
 
 
-def run_ndvi(staged: Path, output_dir: Path, **params):
-    """Call workflow.run() as main.py does, with the eodh-ndvi workflow and the golden AOI by default."""
-    params = {"workflow": "eodh-ndvi", "aoi": AOI_JSON, **params}
+def run_product(product: str, staged: Path, output_dir: Path, **params):
+    """Call workflow.run() as main.py does, with the workflow `product` and the golden AOI by default."""
+    params = {"workflow": product, "aoi": AOI_JSON, **params}
     params = {key: value for key, value in params.items() if value is not None}
     output_dir.mkdir(parents=True, exist_ok=True)
     return workflow.run(WorkflowInputs(stac_item=read_staged_item(staged), params=params), output_dir)
+
+
+def run_ndvi(staged: Path, output_dir: Path, **params):
+    """run_product() with the eodh-ndvi workflow."""
+    return run_product("eodh-ndvi", staged, output_dir, **params)
 
 
 def read_output(spec):
@@ -44,9 +49,10 @@ def read_output(spec):
         return src.read(1), src.transform, src.crs
 
 
-def read_golden(name: str):
-    meta = json.loads((GOLDEN / name / "ndvi.json").read_text())
-    return np.load(GOLDEN / name / "ndvi.npy"), Affine(*meta["transform"]), meta["crs"]
+def read_golden(name: str, index: str = "ndvi"):
+    """(array, transform, crs) of EOPro's golden `index` for fixture `name`."""
+    meta = json.loads((GOLDEN / name / f"{index}.json").read_text())
+    return np.load(GOLDEN / name / f"{index}.npy"), Affine(*meta["transform"]), meta["crs"]
 
 
 def polygon_mask(shape, transform, crs, aoi=AOI, all_touched=False) -> np.ndarray:
