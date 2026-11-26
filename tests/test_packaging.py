@@ -161,6 +161,6 @@ def test_record_is_unchanged_and_keeps_raster_stac_item():
     assert record["properties"]["inputParameters"]["stac_item"]["type"] == "raster"
 
 
-def test_cwl_folder_holds_exactly_the_five_product_cwls():
+def test_cwl_folder_holds_exactly_the_six_product_cwls():
     cwls = sorted(cwl.stem for cwl in (ROOT / "cwl").glob("*.cwl"))
-    assert cwls == ["eodh-evi", "eodh-nbr", "eodh-ndvi", "eodh-ndwi", "eodh-savi"]
+    assert cwls == ["eodh-dnbr", "eodh-evi", "eodh-nbr", "eodh-ndvi", "eodh-ndwi", "eodh-savi"]
