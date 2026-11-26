@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+from urllib.parse import urlparse
 from pathlib import Path
 
 import pytest
@@ -144,7 +145,10 @@ def test_job_fixture_gives_the_hub_l2a_item_url_and_the_fixture_aoi():
     assert set(job) == {"stac_item", "aoi"}
     url = job["stac_item"]
     assert isinstance(url, str)
-    assert url.startswith("https://") and "eodatahub.org.uk" in url
+    host = urlparse(url).hostname
+    assert url.startswith("https://") and (
+        host == "eodatahub.org.uk" or (host is not None and host.endswith(".eodatahub.org.uk"))
+    )
     assert "sentinel-2-c1-l2a" in url
     assert url.rstrip("/").endswith(ITEM_IDS["l2a"])
     assert json.loads(job["aoi"]) == AOI
