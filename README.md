@@ -14,8 +14,10 @@ The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AG
 
 Every product takes two inputs:
 
-- `stac_item`: the staged STAC item (`Directory`).
+- `stac_item`: the URL of the STAC item, as a string.
 - `aoi`: the area of interest, a GeoJSON Polygon, MultiPolygon, or a Feature with one of those, as a string. Pixels outside it are NaN.
+
+The workflows fetch their own data, so ADES runs no stage-in step for them. A workflow fetches the item JSON from the URL, then reads only the area of interest from each band it needs, with HTTP range requests. It reads `http://`, `https://` and `file://` hrefs, without credentials. Relative hrefs are resolved against the item URL. Any other href, such as `s3://`, fails with a message that names it.
 
 The CWL passes the product name to the image as the fixed argument `--workflow=<workflow ID>`. Users and the catalogue never see it.
 
@@ -41,7 +43,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/), and Docker with `buildx` for `m
 ```bash
 make install       # dependencies and pre-commit hooks
 make check         # lint, tests, cwltool --validate on every CWL, versions
-make check-docker  # build the image and run every CWL on its fixture through cwltool
+make check-docker  # build the image and run every CWL on its fixture through cwltool (needs the network)
 make run           # run one product without Docker: make run WORKFLOW=eodh-ndvi
 ```
 
@@ -49,11 +51,11 @@ make run           # run one product without Docker: make run WORKFLOW=eodh-ndvi
 
 ## How to add a product
 
-Adding a product needs no change to shared code: no edit to `src/workflow.py`, the `Makefile` or `scripts/`.
+Adding a product needs no change to shared code: no edit to `src/workflow.py`, the `Makefile` or `scripts/`. It needs no stage-in either: the product gets its bands through `band()`, which reads them from the fetched item.
 
 1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. Use `src/common/` for the AOI, the bands (`band()`) and the brightness rule. Set the `CollectionSpec` id to the workflow ID.
 2. **CWL.** Copy `cwl/eodh-ndvi.cwl` to `cwl/eodh-<name>.cwl`. Change the `Workflow` `id`, `label` and `doc`, and the tool's `arguments` to `["--workflow=eodh-<name>"]`. Keep the image and version.
-3. **Fixture.** Add `cwl/eodh-<name>.job.yml` with the staged item and AOI that `make check-docker` runs it on.
+3. **Fixture.** Add `cwl/eodh-<name>.job.yml` with the item URL and AOI that `make check-docker` runs it on.
 4. **Record.** Copy `records/eodh-ndvi.json` to `records/eodh-<name>.json`. Change the `id`, title, description, keywords, `applicableCollections` and the `application` link.
 5. **Tests.** Add tests for the product's values, and parity tests against EOPro golden arrays where EOPro has the product.
 6. Run `make check` and `make check-docker`, and add the product to the table above.

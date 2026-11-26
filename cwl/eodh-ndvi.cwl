@@ -2,7 +2,7 @@ cwlVersion: v1.2
 $namespaces:
   s: https://schema.org/
 # Must equal the pyproject.toml version and the dockerPull tag. Change all of them with `make bump VERSION=x.y.z`.
-s:softwareVersion: 0.1.0
+s:softwareVersion: 0.2.0
 schemas:
   - http://schema.org/version/9.0/schemaorg-current-http.rdf
 
@@ -22,8 +22,10 @@ $graph:
     inputs:
       stac_item:
         label: STAC item
-        doc: A sentinel-2-c1-l2a or sentinel2_ard item with red and nir bands.
-        type: Directory
+        doc: >-
+          The URL of a sentinel-2-c1-l2a or sentinel2_ard item with red and nir bands. The workflow
+          fetches the item and reads only the area of interest from its bands.
+        type: string
       aoi:
         label: Area of interest
         doc: A GeoJSON Polygon, MultiPolygon, or a Feature with one of those, in EPSG:4326.
@@ -37,7 +39,7 @@ $graph:
       main:
         run: "#main-tool"
         in:
-          stac_item_dir: stac_item
+          stac_item: stac_item
           aoi: aoi
         out: [results]
 
@@ -51,16 +53,15 @@ $graph:
         networkAccess: true
     hints:
       DockerRequirement:
-        dockerPull: ghcr.io/eo-datahub/eodh-index-workflows:0.1.0
+        dockerPull: ghcr.io/eo-datahub/eodh-index-workflows:0.2.0
     baseCommand: ["python3", "/app/main.py"]
     arguments: ["--workflow=eodh-ndvi"]
     inputs:
-      stac_item_dir:
-        type: Directory
+      stac_item:
+        type: string
         inputBinding:
-          prefix: --stac_item_dir=
+          prefix: --stac_item=
           separate: false
-          valueFrom: $(self.path)
       aoi:
         type: string
         inputBinding:
