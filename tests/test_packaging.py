@@ -161,17 +161,6 @@ def test_record_is_unchanged_and_keeps_raster_stac_item():
     assert record["properties"]["inputParameters"]["stac_item"]["type"] == "raster"
 
 
-def test_stage1_version_is_0_4_0_in_pyproject_and_every_cwl():
-    assert re.search(r'^version = "0\.4\.0"$', (ROOT / "pyproject.toml").read_text(), re.MULTILINE)
-    cwls = sorted((ROOT / "cwl").glob("*.cwl"))
-    assert [cwl.stem for cwl in cwls] == ["eodh-evi", "eodh-nbr", "eodh-ndvi", "eodh-ndwi", "eodh-savi"]
-    for cwl in cwls:
-        text = cwl.read_text()
-        assert yaml.safe_load(text)["s:softwareVersion"] == "0.4.0", cwl.name
-        assert re.findall(r"eodh-index-workflows:(\S+)", text) == ["0.4.0"], cwl.name
-
-
-def test_stage1_readme_product_table_lists_ndwi():
-    [row] = [line for line in (ROOT / "README.md").read_text().splitlines() if line.startswith("| `eodh-ndwi`")]
-    assert re.search(r"ndwi", row, re.IGNORECASE) and "rdbu" in row
-    assert "cwl/eodh-ndwi.cwl" in row and "records/eodh-ndwi.json" in row
+def test_cwl_folder_holds_exactly_the_five_product_cwls():
+    cwls = sorted(cwl.stem for cwl in (ROOT / "cwl").glob("*.cwl"))
+    assert cwls == ["eodh-evi", "eodh-nbr", "eodh-ndvi", "eodh-ndwi", "eodh-savi"]

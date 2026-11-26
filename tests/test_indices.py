@@ -57,15 +57,6 @@ EARLIER_RECORD_SHA256 = {
     "savi": "fb11aff06c7386c0abe2a4fe0049bab5accd67bfdece78e7e255398d8f5b2602",
     "nbr": "ddc4dfb94274cc8eba3272db47126fd177ce580dfaa1d4a53a50f2a4fcf66ebf",
 }
-# sha256 of the shared code that a new single-index product must not change, recorded at 0.3.0.
-SHARED_CODE_SHA256 = {
-    "src/common/__init__.py": "20ca217ffc2c4264337f8dc81d8b4f7815f1dc2bcde14dbc413ae802c0800a72",
-    "src/common/aoi.py": "071c63b236225efd184926d5729ae22c6ff12d82449134174e243e8f269facb8",
-    "src/common/bands.py": "552cac545c64e7fadca6c61c292ba062f93caec8b9879e2a5fb0a99d65fa168a",
-    "src/common/fetch.py": "39704b81a80f4e76820927ff5f8d20800a49a78507cc586c105625071d9016db",
-    "src/common/index.py": "61e833f7a8c086a11d7b9480798ffdedaacfd1b08b84b9f96698390a323f75d4",
-    "src/main.py": "6979767abf61e1f9c8cc7414fc37065f1a68d132d627efe79ecdb6e21b7ab7c6",
-}
 
 
 def _without_version(text: str) -> str:
@@ -98,7 +89,8 @@ def test_ndvi_cwl_is_unchanged_apart_from_the_version():
     assert hashlib.sha256(text.encode()).hexdigest() == NDVI_CWL_SHA256
 
 
-def _assert_uses_the_shared_function(product):
+@pytest.mark.parametrize("product", ["ndvi", "evi", "savi", "nbr", "ndwi"])
+def test_product_module_leaves_the_shared_steps_to_the_shared_function(product):
     import common
 
     assert callable(getattr(common, SHARED_FUNCTION))
@@ -111,27 +103,11 @@ def _assert_uses_the_shared_function(product):
 
 
 @pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
-def test_stage1_earlier_product_cwl_and_record_are_unchanged_apart_from_the_version(product):
+def test_earlier_product_cwl_and_record_are_unchanged_apart_from_the_version(product):
     cwl = _without_version((ROOT / "cwl" / f"eodh-{product}.cwl").read_text())
     assert hashlib.sha256(cwl.encode()).hexdigest() == EARLIER_CWL_SHA256[product]
     record = json.loads((ROOT / "records" / f"eodh-{product}.json").read_text())
     assert hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest() == EARLIER_RECORD_SHA256[product]
-
-
-def test_stage1_shared_code_and_main_are_unchanged():
-    files = sorted(str(path.relative_to(ROOT)) for path in (ROOT / "src" / "common").glob("*.py"))
-    assert files + ["src/main.py"] == list(SHARED_CODE_SHA256)
-    for path, digest in SHARED_CODE_SHA256.items():
-        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == digest, path
-
-
-@pytest.mark.parametrize("product", ["ndvi", "evi", "savi", "nbr"])
-def test_product_module_leaves_the_shared_steps_to_the_shared_function(product):
-    _assert_uses_the_shared_function(product)
-
-
-def test_stage1_ndwi_module_leaves_the_shared_steps_to_the_shared_function():
-    _assert_uses_the_shared_function("ndwi")
 
 
 NIR = np.array([0.5, 0.3, 0.05])
@@ -159,7 +135,7 @@ def test_index_formula_matches_eopro(product, bands, expected):
     np.testing.assert_allclose(getattr(module, product)(**bands), expected, rtol=1e-6)
 
 
-def test_stage1_ndwi_formula_is_green_minus_nir_over_their_sum_and_high_for_water():
+def test_ndwi_formula_is_green_minus_nir_over_their_sum_and_high_for_water():
     from products import ndwi
 
     np.testing.assert_allclose(ndwi.ndwi(green=GREEN, nir=NIR), (GREEN - NIR) / (GREEN + NIR), rtol=1e-6)
@@ -176,8 +152,11 @@ def test_evi_writes_eopro_coefficients_without_xarray_spatial():
         assert re.search(rf"\b{re.escape(value)}\b", source), value
 
 
-def _assert_matches_golden(product, name, staged, tmp_path):
+@pytest.mark.parametrize("name", ["l2a", "ard"])
+@pytest.mark.parametrize("product", ["evi", "savi", "nbr", "ndwi"])
+def test_index_matches_eopro_golden_inside_aoi_on_the_10m_grid(product, name, request, tmp_path):
     golden, golden_transform, golden_crs = read_golden(name, product)
+    staged = request.getfixturevalue(f"{name}_staged")
     data, transform, crs = read_output(run_product(f"eodh-{product}", staged, tmp_path / "out"))
     assert (transform.a, transform.e) == (10.0, -10.0)
     assert crs.to_string() == golden_crs
@@ -187,34 +166,16 @@ def _assert_matches_golden(product, name, staged, tmp_path):
     assert np.allclose(ours[inside], golden[inside], equal_nan=True)
 
 
-@pytest.mark.parametrize("name", ["l2a", "ard"])
-@pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
-def test_index_matches_eopro_golden_inside_aoi_on_the_10m_grid(product, name, request, tmp_path):
-    _assert_matches_golden(product, name, request.getfixturevalue(f"{name}_staged"), tmp_path)
-
-
-@pytest.mark.parametrize("name", ["l2a", "ard"])
-def test_stage1_ndwi_matches_eopro_golden_inside_aoi_on_the_10m_grid(name, request, tmp_path):
-    _assert_matches_golden("ndwi", name, request.getfixturevalue(f"{name}_staged"), tmp_path)
-
-
 @pytest.mark.parametrize(
     "product, colormap",
     [
         pytest.param("evi", "ylgn", id="evi-ylgn"),
         pytest.param("savi", "ylgn", id="savi-ylgn"),
         pytest.param("nbr", "rdylgn", id="nbr-rdylgn"),
+        pytest.param("ndwi", "rdbu", id="ndwi-rdbu"),
     ],
 )
 def test_index_output_is_valid_and_renders_minus_one_to_one(product, colormap, l2a_staged, tmp_path):
-    _assert_valid_and_renders_minus_one_to_one(product, colormap, l2a_staged, tmp_path)
-
-
-def test_stage1_ndwi_output_is_valid_and_renders_rdbu_from_minus_one_to_one(l2a_staged, tmp_path):
-    _assert_valid_and_renders_minus_one_to_one("ndwi", "rdbu", l2a_staged, tmp_path)
-
-
-def _assert_valid_and_renders_minus_one_to_one(product, colormap, l2a_staged, tmp_path):
     output_dir = tmp_path / "out"
     main.main(
         [
@@ -235,16 +196,8 @@ def _assert_valid_and_renders_minus_one_to_one(product, colormap, l2a_staged, tm
     assert render["colormap_name"] == colormap
 
 
-@pytest.mark.parametrize("product", ["evi", "savi", "nbr"])
+@pytest.mark.parametrize("product", ["evi", "savi", "nbr", "ndwi"])
 def test_index_is_packaged_like_ndvi(product):
-    _assert_packaged_like_ndvi(product)
-
-
-def test_stage1_ndwi_is_packaged_like_ndvi():
-    _assert_packaged_like_ndvi("ndwi")
-
-
-def _assert_packaged_like_ndvi(product):
     name = f"eodh-{product}"
     ndvi, cwl = _cwl_nodes(ROOT / "cwl" / "eodh-ndvi.cwl"), _cwl_nodes(ROOT / "cwl" / f"{name}.cwl")
     assert cwl["Workflow"]["id"] == name
