@@ -2,7 +2,7 @@ cwlVersion: v1.2
 $namespaces:
   s: https://schema.org/
 # Must equal the pyproject.toml version and the dockerPull tag. Change all of them with `make bump VERSION=x.y.z`.
-s:softwareVersion: 0.3.0
+s:softwareVersion: 0.4.0
 schemas:
   - http://schema.org/version/9.0/schemaorg-current-http.rdf
 
@@ -54,7 +54,7 @@ $graph:
         networkAccess: true
     hints:
       DockerRequirement:
-        dockerPull: ghcr.io/eo-datahub/eodh-index-workflows:0.3.0
+        dockerPull: ghcr.io/eo-datahub/eodh-index-workflows:0.4.0
     baseCommand: ["python3", "/app/main.py"]
     arguments: ["--workflow=eodh-nbr"]
     inputs:
