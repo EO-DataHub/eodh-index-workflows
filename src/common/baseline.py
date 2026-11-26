@@ -88,7 +88,8 @@ def find_baseline_item(
 
     if best is None:
         raise LookupError(
-            f"No baseline item in collection {collection!r} for the range {date_range!r} on tile {_describe(tile)}"
+            f"No baseline item in collection {collection!r} for the range {date_range!r} "
+            f"on tile {_describe(tile, item.id)}"
         )
     chosen = best.fetched or fetch_item(_item_url(best.item, search_url), timeout)
     logger.info(
@@ -123,8 +124,22 @@ def _parse_range(date_range: str, item_time: datetime) -> Tuple[datetime, dateti
     if end < start:
         raise ValueError(f"The baseline range {date_range!r} ends before it starts (item date {item_date})")
     if end > item_time:
-        raise ValueError(f"The baseline range {date_range!r} ends after the item's date {item_date}")
+        hint = ""
+        if _is_date(parts[1]):
+            hint = "; a date-only end includes that whole day, so end the range on an earlier day"
+        raise ValueError(
+            f"The baseline range {date_range!r} ends after the item's datetime {_rfc3339(item_time)} "
+            f"({item_date}){hint}"
+        )
     return start, end
+
+
+def _is_date(text: str) -> bool:
+    try:
+        date.fromisoformat(text.strip())
+    except ValueError:
+        return False
+    return True
 
 
 def _rfc3339(moment: datetime) -> str:
@@ -213,6 +228,8 @@ def _item_url(result: dict, search_url: str) -> str:
 def _match(result: dict, tile: dict, area, search_url: str, timeout: float) -> Optional[_Candidate]:
     """The search result as a candidate if it covers the AOI and is on `tile`, fetching the item when
     the result does not say which tile it is on."""
+    # A result without geometry is dropped without being fetched, on purpose: Element84 and CEDA
+    # search results both carry geometry.
     if not _covers(result.get("geometry"), area):
         return None
     candidate = _Candidate(result)
@@ -250,7 +267,10 @@ def _next_link(page: dict, url: str) -> Optional[str]:
     return None
 
 
-def _describe(tile: dict) -> str:
+def _describe(tile: dict, item_id: Optional[str]) -> str:
     if "grid:code" in tile:
         return str(tile["grid:code"])
+    found = _ARD_TILE.search(str(item_id or ""))
+    if found:
+        return f"T{found.group(1)} ({tile['proj:code']}, transform {tile['proj:transform']})"
     return f"{tile['proj:code']} with transform {tile['proj:transform']}"
