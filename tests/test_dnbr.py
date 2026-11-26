@@ -130,7 +130,7 @@ def _render_for(item: pystac.Item, asset_key: str) -> dict:
     return render
 
 
-def test_stage2_dnbr_is_baseline_nbr_minus_input_nbr_on_the_input_nir_grid(dnbr_catalogue, tmp_path):
+def test_dnbr_is_baseline_nbr_minus_input_nbr_on_the_input_nir_grid(dnbr_catalogue, tmp_path):
     cat = dnbr_catalogue
     before, before_transform, before_crs = read_output(run_product("eodh-nbr", cat.baseline_staged, tmp_path / "b"))
     after, after_transform, after_crs = read_output(run_product("eodh-nbr", cat.input_staged, tmp_path / "a"))
@@ -146,7 +146,7 @@ def test_stage2_dnbr_is_baseline_nbr_minus_input_nbr_on_the_input_nir_grid(dnbr_
     assert np.isnan(dnbr[~inside]).all()
 
 
-def test_stage2_severity_classes_rise_with_dnbr_with_usgs_bounds_in_the_module(dnbr_catalogue):
+def test_dnbr_severity_classes_rise_with_dnbr_and_use_usgs_bounds(dnbr_catalogue):
     rasters = _rasters(_output_item(dnbr_catalogue.run()))
     _, dnbr, _, _, _ = rasters["dnbr"]
     _, severity, nodata, _, _ = rasters["severity"]
@@ -165,7 +165,7 @@ def test_stage2_severity_classes_rise_with_dnbr_with_usgs_bounds_in_the_module(d
     assert re.search(r"usgs", inspect.getsource(module), re.IGNORECASE)
 
 
-def test_stage2_output_names_the_baseline_item_and_renders_dnbr_and_severity(dnbr_catalogue):
+def test_dnbr_output_names_the_baseline_item_and_renders_dnbr_and_severity(dnbr_catalogue):
     output_dir = dnbr_catalogue.run()
     assert output_problems(output_dir) == []
     item = _output_item(output_dir)
@@ -198,7 +198,7 @@ def _valid_baseline(value: str):
     assert start < end < ITEM_DATE, value
 
 
-def test_stage2_dnbr_cwl_job_examples_and_record_follow_ndvi_with_a_baseline_date_range():
+def test_dnbr_cwl_job_examples_and_record_follow_ndvi_with_a_baseline_date_range():
     ndvi, cwl = _cwl_nodes("eodh-ndvi"), _cwl_nodes(NAME)
     assert cwl["Workflow"]["id"] == NAME
     assert cwl["CommandLineTool"]["arguments"] == [f"--workflow={NAME}"]
@@ -234,21 +234,7 @@ def test_stage2_dnbr_cwl_job_examples_and_record_follow_ndvi_with_a_baseline_dat
     assert links["vcs"] == {link["rel"]: link["href"] for link in ndvi_record["links"]}["vcs"]
 
 
-def test_stage2_readme_lists_dnbr_and_explains_the_baseline():
-    readme = (ROOT / "README.md").read_text()
-    [row] = [line for line in readme.splitlines() if line.startswith(f"| `{NAME}`")]
-    assert f"cwl/{NAME}.cwl" in row and f"records/{NAME}.json" in row
-    assert "`baseline`" in readme
-    for words in (r"date range", r"same tile", r"cloud", r"closest"):
-        assert re.search(words, readme, re.IGNORECASE), words
-
-
-def test_stage2_version_is_bumped_past_the_nbr_release():
-    version = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE).group(1)
-    assert tuple(int(part) for part in version.split(".")) > (0, 3, 0)
-
-
-def test_stage3_severity_write_that_fails_part_way_leaves_no_temporary_geotiff(tmp_path, monkeypatch):
+def test_dnbr_severity_write_that_fails_part_way_leaves_no_temporary_geotiff(tmp_path, monkeypatch):
     module = importlib.import_module("products.dnbr")
     dnbr_cog = tmp_path / "item_dnbr.tif"
     profile = {

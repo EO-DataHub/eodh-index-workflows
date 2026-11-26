@@ -109,7 +109,7 @@ def find(catalogue: Catalogue, date_range: str = BASELINE, **kwargs) -> StacItem
     return find_baseline_item(catalogue.input_item(), AOI, date_range, **kwargs)
 
 
-def test_stage1_l2a_search_returns_least_cloudy_item_fetched_with_absolute_hrefs(catalogue):
+def test_baseline_l2a_search_returns_least_cloudy_item_with_absolute_hrefs(catalogue):
     cat = catalogue("l2a")
     cat.answer(
         [
@@ -135,7 +135,7 @@ def test_stage1_l2a_search_returns_least_cloudy_item_fetched_with_absolute_hrefs
     assert not cat.fetched("cloudy") and not cat.fetched("hazy"), "L2A results already carry cloud and tile"
 
 
-def test_stage1_ard_search_reads_cloud_and_grid_from_each_fetched_item(catalogue):
+def test_baseline_ard_search_reads_cloud_and_grid_from_each_fetched_item(catalogue):
     cat = catalogue("ard")
     other_orbit = "S2B_20230520_latn518lonw0008_T30UXC_ORB137_20230520120350_utm30n_osgb"
     cat.answer(
@@ -155,7 +155,7 @@ def test_stage1_ard_search_reads_cloud_and_grid_from_each_fetched_item(catalogue
         assert asset["href"].startswith(cat.server.base + "/"), asset["href"]
 
 
-def test_stage1_items_off_the_tile_not_covering_the_aoi_or_the_input_itself_are_dropped(catalogue):
+def test_baseline_drops_items_off_the_tile_not_covering_the_aoi_or_the_input_itself(catalogue):
     cat = catalogue("l2a")
     cat.answer(
         [
@@ -169,7 +169,7 @@ def test_stage1_items_off_the_tile_not_covering_the_aoi_or_the_input_itself_are_
     assert find(cat).id == "kept"
 
 
-def test_stage1_search_follows_next_links_to_later_pages(catalogue):
+def test_baseline_search_follows_next_links_to_later_pages(catalogue):
     cat = catalogue("l2a")
     cat.answer(
         [cat.candidate("page1", "2023-05-10T11:00:00Z", cloud=30.0)],
@@ -181,7 +181,7 @@ def test_stage1_search_follows_next_links_to_later_pages(catalogue):
     assert len(cat.searches()) == 3
 
 
-def test_stage1_search_stops_following_next_links_at_a_limit(catalogue):
+def test_baseline_search_stops_following_next_links_at_a_limit(catalogue):
     cat = catalogue("l2a")
     results = [cat.candidate(f"item{n}", f"2023-05-{10 + n}T11:00:00Z", cloud=10.0 + n) for n in range(5)]
     page = {"type": "FeatureCollection", "features": results, "links": [{"rel": "next", "href": cat.search_url}]}
@@ -191,29 +191,29 @@ def test_stage1_search_stops_following_next_links_at_a_limit(catalogue):
     assert 1 < len(cat.searches()) < 100
 
 
-def test_stage1_cloud_tie_goes_to_the_item_closest_in_time(catalogue):
+@pytest.mark.parametrize(
+    "candidates, expected",
+    [
+        (
+            [
+                ("early", "2023-05-02T11:00:00Z", 5.0),
+                ("late", "2023-05-30T11:00:00Z", 5.0),
+                ("middle", "2023-05-16T11:00:00Z", 5.0),
+            ],
+            "late",
+        ),
+        (
+            [("no-cloud-value", "2023-05-30T11:00:00Z", None), ("very-cloudy", "2023-05-02T11:00:00Z", 60.0)],
+            "very-cloudy",
+        ),
+    ],
+    ids=["cloud-tie-goes-to-closest-in-time", "missing-cloud-cover-sorts-last"],
+)
+def test_baseline_prefers_least_cloud_then_closest_in_time(candidates, expected, catalogue):
     cat = catalogue("l2a")
-    cat.answer(
-        [
-            cat.candidate("early", "2023-05-02T11:00:00Z", cloud=5.0),
-            cat.candidate("late", "2023-05-30T11:00:00Z", cloud=5.0),
-            cat.candidate("middle", "2023-05-16T11:00:00Z", cloud=5.0),
-        ]
-    )
+    cat.answer([cat.candidate(item_id, when, cloud=cloud) for item_id, when, cloud in candidates])
 
-    assert find(cat).id == "late"
-
-
-def test_stage1_item_without_cloud_cover_sorts_last(catalogue):
-    cat = catalogue("l2a")
-    cat.answer(
-        [
-            cat.candidate("no-cloud-value", "2023-05-30T11:00:00Z"),
-            cat.candidate("very-cloudy", "2023-05-02T11:00:00Z", cloud=60.0),
-        ]
-    )
-
-    assert find(cat).id == "very-cloudy"
+    assert find(cat).id == expected
 
 
 @pytest.mark.parametrize(
@@ -221,7 +221,7 @@ def test_stage1_item_without_cloud_cover_sorts_last(catalogue):
     ["2023-05-01/2023-05-31", "2023-05-01T00:00:00Z/2023-05-31T23:59:59Z"],
     ids=["dates", "datetimes"],
 )
-def test_stage1_baseline_range_is_read_from_dates_or_datetimes(date_range, catalogue):
+def test_baseline_range_is_read_from_dates_or_datetimes(date_range, catalogue):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
 
@@ -235,7 +235,7 @@ def test_stage1_baseline_range_is_read_from_dates_or_datetimes(date_range, catal
     ["not-a-range", "2023-05-01", "2023-05-31/2023-05-01", "2023-13-01/2023-05-31", "2023-05-01/2023-07-01"],
     ids=["not-a-range", "no-end", "end-before-start", "bad-month", "ends-after-the-item"],
 )
-def test_stage1_bad_baseline_range_fails_naming_the_range_and_the_item_date(date_range, catalogue):
+def test_baseline_bad_range_fails_naming_the_range_and_the_item_date(date_range, catalogue):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
 
@@ -246,25 +246,21 @@ def test_stage1_bad_baseline_range_fails_naming_the_range_and_the_item_date(date
     assert cat.searches() == []
 
 
-def test_stage1_no_matching_item_fails_naming_collection_range_and_tile(catalogue):
-    cat = catalogue("l2a")
-    cat.answer([cat.candidate("other-tile", "2023-05-10T11:00:00Z", cloud=0.0, **{"grid:code": "MGRS-31UCT"})])
-
-    with pytest.raises(Exception) as raised:
-        find(cat)
-    message = str(raised.value)
-    assert cat.collection in message
-    assert BASELINE in message
-    assert "30UXC" in message
-    assert "31UCT" not in message
-
-
-def test_stage1_ard_no_matching_item_names_the_tile_from_the_item_id(catalogue):
-    cat = catalogue("ard")
-    other_tile = "S2B_20230520_latn518lonw0008_T31UCT_ORB137_20230520120350_utm30n_osgb"
-    cat.answer(
-        [cat.candidate(other_tile, "2023-05-20T11:00:00Z", cloud=0.0, **{"proj:transform": OTHER_ORBIT_TRANSFORM})]
-    )
+@pytest.mark.parametrize(
+    "kind, other_tile, properties",
+    [
+        ("l2a", "other-tile", {"grid:code": "MGRS-31UCT"}),
+        (
+            "ard",
+            "S2B_20230520_latn518lonw0008_T31UCT_ORB137_20230520120350_utm30n_osgb",
+            {"proj:transform": OTHER_ORBIT_TRANSFORM},
+        ),
+    ],
+    ids=["l2a-grid-code", "ard-tile-from-item-id"],
+)
+def test_baseline_no_matching_item_fails_naming_collection_range_and_tile(kind, other_tile, properties, catalogue):
+    cat = catalogue(kind)
+    cat.answer([cat.candidate(other_tile, "2023-05-20T11:00:00Z", cloud=0.0, **properties)])
 
     with pytest.raises(Exception) as raised:
         find(cat)
@@ -276,7 +272,7 @@ def test_stage1_ard_no_matching_item_names_the_tile_from_the_item_id(catalogue):
 
 
 @pytest.mark.parametrize("statuses", [[429], [503], [429, 502, 503]], ids=["429", "503", "429-502-503"])
-def test_stage1_search_retries_429_and_5xx_with_growing_backoff(statuses, catalogue, sleeps):
+def test_baseline_search_retries_429_and_5xx_with_growing_backoff(statuses, catalogue, sleeps):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
     cat.server.fail(cat.search_path, list(statuses))
@@ -291,7 +287,7 @@ def test_stage1_search_retries_429_and_5xx_with_growing_backoff(statuses, catalo
 @pytest.mark.parametrize(
     "status, retry_after, expected", [(429, 2, 2), (503, 120, 30)], ids=["2s", "120s-capped-at-30s"]
 )
-def test_stage1_search_waits_as_long_as_retry_after_capped_at_30s(status, retry_after, expected, catalogue, sleeps):
+def test_baseline_search_waits_as_long_as_retry_after_capped_at_30s(status, retry_after, expected, catalogue, sleeps):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
     cat.server.fail(cat.search_path, [status], retry_after=retry_after)
@@ -300,7 +296,7 @@ def test_stage1_search_waits_as_long_as_retry_after_capped_at_30s(status, retry_
     assert sum(sleeps) == pytest.approx(expected)
 
 
-def test_stage1_search_that_keeps_failing_names_url_and_status(catalogue, sleeps):
+def test_baseline_search_that_keeps_failing_names_url_and_status(catalogue, sleeps):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
     cat.server.fail(cat.search_path, [503] * 50)
@@ -312,7 +308,7 @@ def test_stage1_search_that_keeps_failing_names_url_and_status(catalogue, sleeps
     assert 1 < len(cat.searches()) < 50
 
 
-def test_stage1_search_times_out_naming_url(catalogue, sleeps):
+def test_baseline_search_times_out_naming_url(catalogue, sleeps):
     cat = catalogue("l2a")
     cat.answer([cat.candidate("clear", "2023-05-10T11:00:00Z", cloud=2.0)])
     cat.server.hang(cat.search_path)
