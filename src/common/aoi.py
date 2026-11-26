@@ -96,9 +96,22 @@ def aoi_grid(item_id: str, src, geometry: dict) -> Tuple[Tuple[int, int, int, in
     return (col0, row0, width, height), transform, inside
 
 
-def _vrt_band(src, band: Band, window: Tuple[int, int, int, int], transform: Affine, path: Path) -> Band:
-    """A one-band VRT of `band` cut to `window`, so every input shares the output grid."""
+def _vrt_band(
+    src,
+    band: Band,
+    window: Tuple[int, int, int, int],
+    transform: Affine,
+    path: Path,
+    source_rect: Optional[Tuple[float, float, float, float]] = None,
+) -> Band:
+    """A one-band VRT of `band` cut to `window`, so every input shares the output grid.
+
+    `source_rect` (x, y, width, height in the band's own pixels) is the area of the band that covers
+    the window when the band is on another grid; GDAL reads it onto the window by nearest neighbour.
+    """
     col, row, width, height = window
+    src_x, src_y, src_width, src_height = source_rect or (col, row, width, height)
+    resampling = ' resampling="nearest"' if source_rect else ""
     data_type = typename_fwd[dtype_rev[src.dtypes[band.index - 1]]]
     nodata = src.nodatavals[band.index - 1]
     nodata_xml = f"<NoDataValue>{nodata!r}</NoDataValue>" if nodata is not None else ""
@@ -107,14 +120,25 @@ def _vrt_band(src, band: Band, window: Tuple[int, int, int, int], transform: Aff
         f"<SRS>{escape(src.crs.to_wkt())}</SRS>"
         f"<GeoTransform>{', '.join(repr(v) for v in transform.to_gdal())}</GeoTransform>"
         f'<VRTRasterBand dataType="{data_type}" band="1">{nodata_xml}'
-        "<SimpleSource>"
+        f"<SimpleSource{resampling}>"
         f'<SourceFilename relativeToVRT="0">{escape(gdal_path(band.path))}</SourceFilename>'
         f"<SourceBand>{band.index}</SourceBand>"
-        f'<SrcRect xOff="{col}" yOff="{row}" xSize="{width}" ySize="{height}"/>'
+        f'<SrcRect xOff="{src_x!r}" yOff="{src_y!r}" xSize="{src_width!r}" ySize="{src_height!r}"/>'
         f'<DstRect xOff="0" yOff="0" xSize="{width}" ySize="{height}"/>'
         "</SimpleSource></VRTRasterBand></VRTDataset>"
     )
     return Band(path, 1)
+
+
+def _source_rect(src, window: Tuple[int, int, int, int], transform: Affine) -> Tuple[float, float, float, float]:
+    """The window's area in the pixels of `src`, a band on another grid in the same CRS."""
+    if not (src.transform.b == src.transform.d == transform.b == transform.d == 0):
+        raise ValueError(f"Band {src.name} is on a rotated grid, which is not supported")
+    _, _, width, height = window
+    inverse = ~src.transform
+    x0, y0 = inverse @ (transform.c, transform.f)
+    x1, y1 = inverse @ (transform @ (width, height))
+    return min(x0, x1), min(y0, y1), abs(x1 - x0), abs(y1 - y0)
 
 
 @contextmanager
@@ -167,9 +191,10 @@ def write_aoi_cog(
         clipped = []
         for number, band in enumerate(bands):
             with _open_band(band) as src:
-                if src.crs != crs or src.transform != scene_transform:
-                    raise ValueError(f"Band {band.path} is not on the same grid as {bands[0].path}")
-                clipped.append(_vrt_band(src, band, window, transform, workdir / f"band{number}.vrt"))
+                if src.crs != crs:
+                    raise ValueError(f"Band {band.path} has CRS {src.crs}, not the CRS {crs} of {bands[0].path}")
+                source_rect = None if src.transform == scene_transform else _source_rect(src, window, transform)
+                clipped.append(_vrt_band(src, band, window, transform, workdir / f"band{number}.vrt", source_rect))
         mask = _write_mask(workdir / "aoi_mask.tif", inside, crs, transform)
 
         def compute_inside(*arrays: np.ndarray) -> np.ndarray:

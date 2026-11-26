@@ -13,6 +13,7 @@ The repository started from the `eodh-workflow-starter` template. [AGENTS.md](AG
 | `eodh-ndvi` | NDVI, `(nir - red) / (nir + red)`, the same values as EOPro. Shown with `ylgn` from -0.2 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-ndvi.cwl](cwl/eodh-ndvi.cwl) | [records/eodh-ndvi.json](records/eodh-ndvi.json) |
 | `eodh-evi` | EVI, `2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)`, the same values as EOPro. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-evi.cwl](cwl/eodh-evi.cwl) | [records/eodh-evi.json](records/eodh-evi.json) |
 | `eodh-savi` | SAVI as EOPro computes it, `(nir - red) / ((nir + red + 0.5) * 1.5)`. Shown with `ylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-savi.cwl](cwl/eodh-savi.cwl) | [records/eodh-savi.json](records/eodh-savi.json) |
+| `eodh-nbr` | NBR, `(nir - swir22) / (nir + swir22)`, the same values as EOPro, on the 10 m `nir` grid. Shown with `rdylgn` from -1 to 1. | `sentinel-2-c1-l2a`, `sentinel2_ard` | [cwl/eodh-nbr.cwl](cwl/eodh-nbr.cwl) | [records/eodh-nbr.json](records/eodh-nbr.json) |
 
 Every product takes two inputs:
 
@@ -59,7 +60,7 @@ Adding a product needs no change to shared code: no edit to `src/workflow.py`, t
 1. **Product module.** Add `src/products/<name>.py` with `NAME = "eodh-<name>"` and `run(inputs, output_dir) -> OutputSpec`. For a single-index product, `run()` only calls `run_index_product` from `common`, as `src/products/ndvi.py` does. It passes:
    - `name`: the workflow ID, `NAME`;
    - `index`: the short index name, used for the item ID suffix, the band name and the render key;
-   - `bands`: the STAC common names of the input bands, for example `("red", "nir")`. The output is on the grid of the first band;
+   - `bands`: the STAC common names of the input bands, for example `("red", "nir")`. The output is on the grid of the first band, so put the finest band first. A band on another grid in the same CRS is read onto it by nearest neighbour; a band in another CRS fails;
    - `formula`: a function that takes each band's reflectance as a keyword argument named by its common name, for example `def ndvi(red, nir)`;
    - `title`, `description`, `keywords`, and `render`: the render's `rescale` and `colormap_name`.
 

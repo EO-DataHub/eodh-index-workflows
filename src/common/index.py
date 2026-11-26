@@ -36,7 +36,8 @@ def run_index_product(
 
     name: the workflow ID, which is also the catalog ID.
     index: short name of the index, for the item ID suffix, the band name and the render key.
-    bands: STAC common names of the input bands. The output is on the grid of the first one.
+    bands: STAC common names of the input bands. The output is on the grid of the first one; the
+        others are read onto it by nearest neighbour when their grid differs.
     formula: called with each band's reflectance as a keyword argument named by its common name.
         Reflectance <= 0 is NaN before the formula sees it.
     render: the render without `assets`, for example `{"rescale": [[-1, 1]], "colormap_name": "ylgn"}`.
