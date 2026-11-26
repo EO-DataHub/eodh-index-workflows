@@ -1,6 +1,7 @@
-"""Code shared by the products: the AOI, the band reader and the brightness rule."""
+"""Code shared by the products: the input item, the AOI, the band reader and the brightness rule."""
 
 from .aoi import parse_aoi, write_aoi_cog
-from .bands import band, brightness, require_item
+from .bands import band, brightness
+from .fetch import fetch_item, item_input
 
-__all__ = ["band", "brightness", "parse_aoi", "require_item", "write_aoi_cog"]
+__all__ = ["band", "brightness", "fetch_item", "item_input", "parse_aoi", "write_aoi_cog"]

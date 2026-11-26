@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from common import band, brightness, parse_aoi, require_item, write_aoi_cog
+from common import band, brightness, item_input, parse_aoi, write_aoi_cog
 from eodh_workflow import CollectionSpec, ItemSpec, OutputSpec, RasterAsset, WorkflowInputs
 
 NAME = "eodh-ndvi"
@@ -32,7 +32,7 @@ def ndvi(red: np.ndarray, nir: np.ndarray) -> np.ndarray:
 
 
 def run(inputs: WorkflowInputs, output_dir: Path) -> OutputSpec:
-    item = require_item(inputs.stac_item)
+    item = item_input(inputs)
     geometry = parse_aoi(inputs.params.get("aoi"))
     red_rule, nir_rule = brightness(item, "red"), brightness(item, "nir")
 
