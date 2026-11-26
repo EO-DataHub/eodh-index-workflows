@@ -10,11 +10,12 @@ It prints its port on the first line of stdout. On every request it re-reads `co
     {"pages": {path: body}, "failures": {path: [status, ...]}, "retry_after": {path: seconds},
      "hang": [path, ...], "hang_first": {path: n}, "drop": [path, ...]}
 
-`pages` replaces a file's body, `failures` lists the statuses to answer to the first requests for a
+`pages` replaces a file's body. A `pages` key with a query string (`/search?page=2`) answers only
+that query, before a key with the bare path. `failures` lists the statuses to answer to the first requests for a
 path, and `retry_after` adds a Retry-After header to those failures. Paths in `hang` never get an
 answer, and the first `n` requests for a path in `hang_first` get none. For paths in `drop` the
 server sends the headers and part of the body, then closes the connection. Each request's path is
-appended to `requests.log`.
+appended to `requests.log`, and its path with the query string to `requests.log.full`.
 """
 
 import json
@@ -59,6 +60,8 @@ def serve(root: Path, control: Path, log: Path) -> None:
                 seen[path] += 1
                 with log.open("a") as out:
                     out.write(path + "\n")
+                with log.with_name(log.name + ".full").open("a") as out:
+                    out.write(self.path + "\n")
             if path in settings.get("hang", []) or count < settings.get("hang_first", {}).get(path, 0):
                 time.sleep(60)
                 return
@@ -67,8 +70,11 @@ def serve(root: Path, control: Path, log: Path) -> None:
                 retry_after = settings.get("retry_after", {}).get(path)
                 headers = [("Retry-After", str(retry_after))] if retry_after is not None else []
                 return self._empty(failures[count], headers)
-            if path in settings.get("pages", {}):
-                data = settings["pages"][path].encode()
+            pages = settings.get("pages", {})
+            if self.path in pages:
+                data = pages[self.path].encode()
+            elif path in pages:
+                data = pages[path].encode()
             else:
                 file = (root / path.lstrip("/")).resolve()
                 if not file.is_file() or root not in file.parents:
