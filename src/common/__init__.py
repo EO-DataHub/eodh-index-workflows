@@ -3,6 +3,7 @@ single-index product."""
 
 from .aoi import parse_aoi, write_aoi_cog
 from .bands import band, brightness
+from .baseline import find_baseline_item
 from .fetch import fetch_item, item_input
 from .index import reflectance, run_index_product
 
@@ -10,6 +11,7 @@ __all__ = [
     "band",
     "brightness",
     "fetch_item",
+    "find_baseline_item",
     "item_input",
     "parse_aoi",
     "reflectance",
