@@ -159,3 +159,19 @@ def test_record_is_unchanged_and_keeps_raster_stac_item():
     digest = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
     assert digest == "6d879ffab7aed11715f809b51fa5b6aae68a830e8111eecb68aa20667b621b0d"
     assert record["properties"]["inputParameters"]["stac_item"]["type"] == "raster"
+
+
+def test_stage1_version_is_0_4_0_in_pyproject_and_every_cwl():
+    assert re.search(r'^version = "0\.4\.0"$', (ROOT / "pyproject.toml").read_text(), re.MULTILINE)
+    cwls = sorted((ROOT / "cwl").glob("*.cwl"))
+    assert [cwl.stem for cwl in cwls] == ["eodh-evi", "eodh-nbr", "eodh-ndvi", "eodh-ndwi", "eodh-savi"]
+    for cwl in cwls:
+        text = cwl.read_text()
+        assert yaml.safe_load(text)["s:softwareVersion"] == "0.4.0", cwl.name
+        assert re.findall(r"eodh-index-workflows:(\S+)", text) == ["0.4.0"], cwl.name
+
+
+def test_stage1_readme_product_table_lists_ndwi():
+    [row] = [line for line in (ROOT / "README.md").read_text().splitlines() if line.startswith("| `eodh-ndwi`")]
+    assert re.search(r"ndwi", row, re.IGNORECASE) and "rdbu" in row
+    assert "cwl/eodh-ndwi.cwl" in row and "records/eodh-ndwi.json" in row
