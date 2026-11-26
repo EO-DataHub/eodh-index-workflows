@@ -51,11 +51,7 @@ def fetch_item(url: str, timeout: float = FETCH_TIMEOUT) -> StacItemInput:
         item_path = Path(unquote(parsed.path))
         item = json.loads(item_path.read_text())
     elif scheme in ("http", "https"):
-        body = _get(url, timeout)
-        try:
-            item = json.loads(body)
-        except (json.JSONDecodeError, UnicodeDecodeError) as error:
-            raise RuntimeError(f"STAC item {url} is not JSON: {error}") from error
+        item = get_json(url, timeout)
         item_path = Path(Path(unquote(parsed.path)).name or "item.json")
     else:
         raise ValueError(f"Cannot fetch STAC item {url!r}: the URL must be http://, https:// or file://")
@@ -66,6 +62,15 @@ def fetch_item(url: str, timeout: float = FETCH_TIMEOUT) -> StacItemInput:
             asset["href"] = urljoin(url, href)
     logger.info(f"Fetched item {item.get('id')!r} from {url}, assets {sorted(item.get('assets', {}))}")
     return StacItemInput(item=item, item_path=item_path)
+
+
+def get_json(url: str, timeout: float = FETCH_TIMEOUT, what: str = "STAC item"):
+    """The JSON document at http(s) `url`, with the retries of `_get`. Errors name `what` and the URL."""
+    body = _get(url, timeout, what)
+    try:
+        return json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"{what} {url} is not JSON: {error}") from error
 
 
 def _retry_after(error: urllib.error.HTTPError) -> Optional[float]:
@@ -96,7 +101,7 @@ def _is_timeout(error: BaseException) -> bool:
     return isinstance(_cause(error), (socket.timeout, TimeoutError))
 
 
-def _get(url: str, timeout: float) -> bytes:
+def _get(url: str, timeout: float, what: str = "STAC item") -> bytes:
     """The body at `url`. Retries timeouts, connection errors, 429 and 5xx; honours Retry-After in seconds."""
     problem = ""
     wait: Optional[float] = None
@@ -112,7 +117,7 @@ def _get(url: str, timeout: float) -> bytes:
                 return response.read()
         except urllib.error.HTTPError as error:
             if error.code not in RETRY_STATUSES:
-                raise RuntimeError(f"Could not fetch STAC item {url}: HTTP {error.code}") from error
+                raise RuntimeError(f"Could not fetch {what} {url}: HTTP {error.code}") from error
             problem, wait, last_error = f"HTTP {error.code}", _retry_after(error), error
         except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
             if _is_timeout(error):
@@ -120,9 +125,9 @@ def _get(url: str, timeout: float) -> bytes:
             elif isinstance(_cause(error), (http.client.IncompleteRead, ConnectionError)):
                 problem, last_error = f"a connection error ({_cause(error)!r})", error
             else:
-                raise RuntimeError(f"Could not fetch STAC item {url}: {_cause(error)}") from error
+                raise RuntimeError(f"Could not fetch {what} {url}: {_cause(error)}") from error
     attempts = FETCH_RETRIES + 1
     if last_error is not None and _is_timeout(last_error):
-        message = f"Fetching STAC item {url} timed out after {timeout:g}s, {attempts} attempts"
+        message = f"Fetching {what} {url} timed out after {timeout:g}s, {attempts} attempts"
         raise TimeoutError(message) from last_error
-    raise RuntimeError(f"Could not fetch STAC item {url}: {problem} after {attempts} attempts") from last_error
+    raise RuntimeError(f"Could not fetch {what} {url}: {problem} after {attempts} attempts") from last_error

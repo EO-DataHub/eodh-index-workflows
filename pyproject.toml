@@ -12,6 +12,7 @@ dependencies = [
     "pystac[validation]>=1.14",
     "rasterio>=1.5",
     "rio-cogeo>=7.0.4",
+    "shapely>=2.1",
 ]
 
 [dependency-groups]
